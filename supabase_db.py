@@ -69,7 +69,6 @@ def save_threat(incident_id, anchor_event_id, threat_result, response_result):
         ),
         "status": "pending_approval"
     }).execute()
-    
 
 def save_ranger_feedback(incident_id, outcome, ranger_name, notes=""):
     supabase.table("ranger_feedback").insert({
