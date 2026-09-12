@@ -1,0 +1,2382 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Forest Sentinel // Canopy Overwatch Command</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Anton&amp;family=JetBrains+Mono:ital,wght@0,300;0,400;0,600;0,700;1,400&amp;family=Nunito+Sans:ital,opsz,wght@0,6..12,300..900;1,6..12,400..700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        colors: {
+          "pitch": "#050906",
+          "surface": "#09100b",
+          "surface-container-lowest": "#030604",
+          "surface-container-low": "#0d1610",
+          "surface-container": "#132117",
+          "surface-container-high": "#192c20",
+          "surface-container-highest": "#21392a",
+          "surface-bright": "#2c4a37",
+          "outline": "#3d5744",
+          "outline-variant": "#223528",
+          "on-surface": "#e2ece3",
+          "on-surface-variant": "#8da191",
+          "primary": "#34d399",
+          "primary-dim": "#10b981",
+          "primary-container": "#14482b",
+          "on-primary": "#032814",
+          "on-primary-container": "#86efac",
+          "tertiary": "#fbbf24",
+          "tertiary-container": "#573d09",
+          "on-tertiary": "#3b2600",
+          "error": "#f87171",
+          "error-container": "#5f1315",
+          "on-error": "#370305",
+          "secondary": "#a8b5ab",
+          "secondary-container": "#27382d",
+          "on-secondary": "#18231c"
+        },
+        fontFamily: {
+          headline: ["Anton", "sans-serif"],
+          display: ["Anton", "sans-serif"],
+          body: ["Nunito Sans", "sans-serif"],
+          mono: ["JetBrains Mono", "monospace"],
+          label: ["JetBrains Mono", "monospace"]
+        },
+        boxShadow: {
+          'tactical': '0 0 25px -5px rgba(16, 185, 129, 0.15)',
+          'tactical-alert': '0 0 30px 2px rgba(248, 113, 113, 0.25)',
+          'glow-emerald': '0 0 15px rgba(52, 211, 153, 0.4)',
+          'glow-amber': '0 0 15px rgba(251, 191, 36, 0.35)',
+          'glow-red': '0 0 20px rgba(248, 113, 113, 0.5)'
+        }
+      }
+    }
+  }
+</script>
+<style>
+  @layer base {
+    html, body { margin: 0; padding: 0; background-color: #050906; color: #e2ece3; }
+    body { overscroll-behavior: none; }
+  }
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: #09100b; }
+  ::-webkit-scrollbar-thumb { background: #21392a; border-radius: 2px; }
+  ::-webkit-scrollbar-thumb:hover { background: #34d399; }
+
+  /* Tactical Grid & Scanline Backgrounds */
+  .topo-grid {
+    background-image: 
+      radial-gradient(rgba(52, 211, 153, 0.08) 1px, transparent 0),
+      linear-gradient(to right, rgba(34, 53, 40, 0.25) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(34, 53, 40, 0.25) 1px, transparent 1px);
+    background-size: 24px 24px, 48px 48px, 48px 48px;
+  }
+  .scanline {
+    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.02), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.02));
+    background-size: 100% 3px, 6px 100%;
+    pointer-events: none;
+  }
+  .radar-sweep-anim {
+    animation: radarSweep 4s linear infinite;
+    transform-origin: center center;
+  }
+  @keyframes radarSweep {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+  @keyframes pulseGlow {
+    0%, 100% { opacity: 0.3; transform: scale(1); }
+    50% { opacity: 0.9; transform: scale(1.08); }
+  }
+  .pulse-glow { animation: pulseGlow 2.4s ease-in-out infinite; }
+  
+  /* Corner Brackets */
+  .tactical-box {
+    position: relative;
+  }
+  .tactical-box::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 8px; height: 8px;
+    border-top: 2px solid #34d399;
+    border-left: 2px solid #34d399;
+    pointer-events: none;
+  }
+  .tactical-box::after {
+    content: '';
+    position: absolute;
+    bottom: 0; right: 0;
+    width: 8px; height: 8px;
+    border-bottom: 2px solid #34d399;
+    border-right: 2px solid #34d399;
+    pointer-events: none;
+  }
+  .tactical-box-alert::before { border-color: #f87171 !important; }
+  .tactical-box-alert::after { border-color: #f87171 !important; }
+
+  /* Audio Spectrum Visualizer Bars */
+  .eq-bar {
+    transition: height 0.12s ease;
+  }
+</style>
+</head>
+<body class="bg-pitch font-body text-on-surface antialiased overflow-x-hidden selection:bg-primary-container selection:text-primary">
+<!-- Tactical Top/Scan Overlay -->
+<div class="fixed inset-0 scanline z-50 pointer-events-none opacity-40"></div>
+<!-- SIDEBAR -->
+<aside class="fixed left-0 top-0 h-full w-72 bg-surface-container-lowest border-r border-outline-variant/60 z-40 flex flex-col justify-between shadow-2xl">
+<div class="flex flex-col">
+<!-- Header Logo Banner -->
+<div class="h-16 px-5 flex items-center justify-between border-b border-outline-variant/50 bg-surface-container-low/80 relative">
+<div class="flex items-center gap-3">
+<div class="w-9 h-9 rounded bg-surface-container-high border border-primary/40 flex items-center justify-center text-primary shadow-[0_0_12px_rgba(52,211,153,0.3)]">
+<span class="material-symbols-outlined text-xl">forest</span>
+</div>
+<div class="flex flex-col">
+<span class="font-headline tracking-widest text-lg uppercase text-on-surface leading-tight">Forest Sentinel</span>
+<span class="font-mono text-[9px] tracking-widest text-primary/80 uppercase">Overwatch // v4.8-ECO</span>
+</div>
+</div>
+<span class="relative flex h-2.5 w-2.5">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-80"></span>
+<span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-primary"></span>
+</span>
+</div>
+<!-- DEFCON Status Bar -->
+<div class="mx-4 my-4 p-3 rounded bg-surface-container-low border border-outline-variant/80 flex items-center justify-between shadow-inner">
+<div class="flex items-center gap-2.5">
+<span class="w-2.5 h-2.5 rounded-sm bg-primary shadow-[0_0_8px_#34d399]" id="defcon-indicator"></span>
+<div class="flex flex-col">
+<span class="font-mono text-[11px] uppercase tracking-wider text-on-surface font-bold" id="defcon-text">DEFCON ECO-1</span>
+<span class="font-mono text-[9px] text-on-surface-variant tracking-wider">CANOPY INTEGRITY 99.4%</span>
+</div>
+</div>
+<span class="font-mono text-[10px] px-2 py-0.5 rounded bg-primary/10 border border-primary/40 text-primary font-bold tracking-wider" id="defcon-badge">STABLE</span>
+</div>
+<!-- Navigation -->
+<div class="px-5 py-1 flex items-center justify-between">
+<span class="font-mono text-[10px] tracking-widest uppercase text-on-surface-variant font-bold">Tactical Command</span>
+<span class="font-mono text-[9px] text-outline">LOC: 45.31°N</span>
+</div>
+<nav class="flex flex-col gap-1 px-3 mt-1 font-mono text-xs">
+<a class="nav-link flex items-center justify-between px-3 py-2.5 rounded bg-primary-container/60 border-l-2 border-primary text-on-primary-container font-semibold transition-all shadow-sm" href="javascript:void(0)" data-view="overwatch" onclick="switchView('overwatch')">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-lg text-primary">grid_view</span>
+<span>Tactical Overwatch</span>
+</div>
+<span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
+</a>
+<a class="nav-link flex items-center justify-between px-3 py-2.5 rounded text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all group" href="javascript:void(0)" data-view="sensors" onclick="switchView('sensors')">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-lg group-hover:text-primary transition-colors">sensors</span>
+<span>Sensor Telemetry</span>
+</div>
+<span class="text-[10px] px-1.5 py-0.2 rounded bg-surface-container text-on-surface-variant border border-outline-variant">5/5</span>
+</a>
+<a class="nav-link flex items-center justify-between px-3 py-2.5 rounded text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all group" href="javascript:void(0)" data-view="pipeline" onclick="switchView('pipeline')">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-lg group-hover:text-primary transition-colors">smart_toy</span>
+<span>Agent Pipeline</span>
+</div>
+<span class="text-[9px] text-primary">6 ACTIVE</span>
+</a>
+<a class="nav-link flex items-center justify-between px-3 py-2.5 rounded text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all group" href="javascript:void(0)" data-view="logs" onclick="switchView('logs')">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-lg group-hover:text-primary transition-colors">terminal</span>
+<span>Acoustic FFT Logs</span>
+</div>
+<span class="text-[9px] text-tertiary">LIVE</span>
+</a>
+<a class="nav-link flex items-center justify-between px-3 py-2.5 rounded text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all group" href="javascript:void(0)" data-view="incursions" onclick="switchView('incursions')">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-lg group-hover:text-primary transition-colors">emergency_share</span>
+<span>Poaching Incursions</span>
+</div>
+<span class="w-2 h-2 rounded-full bg-surface-bright" id="nav-incident-indicator"></span>
+</a>
+</nav>
+</div>
+<!-- Bottom Hardware & Mesh Telemetry -->
+<div class="p-4 flex flex-col gap-3 bg-surface-container-lowest border-t border-outline-variant/60 font-mono">
+<div class="p-3 rounded bg-surface-container-low border border-outline-variant/40 flex flex-col gap-2">
+<div class="flex justify-between items-center text-xs">
+<span class="text-on-surface-variant text-[10px] uppercase tracking-wider flex items-center gap-1.5">
+<span class="material-symbols-outlined text-xs text-primary">hub</span>
+          Mesh LoRa Load
+        </span>
+<span class="text-primary font-bold text-[11px]" id="mesh-load-val">74.2%</span>
+</div>
+<div class="w-full h-1.5 bg-surface-container-highest rounded-full overflow-hidden p-0.5">
+<div class="bg-gradient-to-r from-primary to-emerald-400 h-full rounded-full transition-all duration-500" id="mesh-load-bar" style="width: 74.2%;"></div>
+</div>
+<div class="flex justify-between text-[9px] text-on-surface-variant">
+<span>FREQ: 915.2 MHz</span>
+<span>LATENCY: 14ms</span>
+</div>
+</div>
+<div class="flex items-center justify-between text-xs pt-1 px-1">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+<span class="text-[11px] text-on-surface">Satellite Array 04-ORB</span>
+</div>
+<span class="material-symbols-outlined text-primary text-sm">satellite_alt</span>
+</div>
+</div>
+</aside>
+<!-- MAIN APP BODY -->
+<div class="pl-72 flex flex-col min-h-screen">
+<!-- TOP OVERWATCH COMMAND BAR -->
+<header class="fixed top-0 left-72 right-0 h-16 bg-surface/90 backdrop-blur-md border-b border-outline-variant/70 z-30 flex items-center justify-between px-8 shadow-lg">
+<div class="flex items-center gap-5">
+<div class="flex items-center gap-2.5 px-3 py-1.5 rounded bg-surface-container-low border border-outline-variant font-mono">
+<span class="material-symbols-outlined text-primary text-sm">nest_cam_wired_stand</span>
+<span class="text-[10px] text-on-surface-variant uppercase tracking-wider">Acoustic Nodes:</span>
+<span class="text-xs text-on-surface font-bold" id="top-sensor-count">5 / 5 ACTIVE</span>
+</div>
+<div class="flex items-center gap-2.5 px-3 py-1.5 rounded bg-surface-container-low border border-outline-variant font-mono">
+<span class="material-symbols-outlined text-primary text-sm">smart_toy</span>
+<span class="text-[10px] text-on-surface-variant uppercase tracking-wider">Autonomous Swarms:</span>
+<span class="text-xs text-on-surface font-bold">06 Agents Armed</span>
+</div>
+<div class="hidden xl:flex items-center gap-2.5 px-3 py-1.5 rounded bg-surface-container-low border border-outline-variant font-mono">
+<span class="material-symbols-outlined text-tertiary text-sm">bolt</span>
+<span class="text-[10px] text-on-surface-variant uppercase tracking-wider">TDoA Solver:</span>
+<span class="text-xs text-tertiary font-bold">±1.4m Accuracy</span>
+</div>
+<div class="hidden 2xl:flex items-center gap-2.5 px-3 py-1.5 rounded bg-surface-container-low border border-outline-variant font-mono">
+<span class="material-symbols-outlined text-primary text-sm">sync</span>
+<span class="text-[10px] text-on-surface-variant uppercase tracking-wider">Arbitration:</span>
+<span class="text-xs text-primary font-bold">Strict Consensus</span>
+</div>
+</div>
+<!-- Right Quick Actions & Transmit Buttons -->
+<div class="flex items-center gap-3 font-mono">
+<button class="px-3 py-1.5 rounded border border-primary/50 bg-primary-container/40 hover:bg-primary-container text-on-primary-container text-xs font-semibold uppercase tracking-wider flex items-center gap-2 transition-all shadow-sm" id="btn-toggle-auto" onclick="toggleAutonomousResponse()">
+<span class="w-2 h-2 rounded-full bg-primary animate-ping" id="auto-dot"></span>
+<span id="auto-text">AUTONOMOUS: ACTIVE</span>
+</button>
+<button class="px-3.5 py-1.5 rounded bg-primary hover:bg-emerald-400 text-pitch text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all shadow-[0_0_15px_rgba(52,211,153,0.35)] active:scale-95" id="btn-transmit-ping" onclick="triggerPingBurst()">
+<span class="material-symbols-outlined text-sm">radar</span>
+<span>TRANSMIT PING</span>
+</button>
+<div class="h-6 w-px bg-outline-variant mx-1"></div>
+<div class="w-8 h-8 rounded bg-surface-container-high border border-outline flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-sm">terminal</span>
+</div>
+</div>
+</header>
+<!-- MAIN DASHBOARD CONTENT -->
+<main class="pt-16 pb-12 px-8 flex flex-col gap-6 w-full max-w-[1920px] mx-auto topo-grid">
+<!-- SUBHEADER LIVE TELEMETRY STRIP -->
+<div class="mt-4 p-4 rounded-lg bg-surface-container-low/90 border border-outline-variant flex flex-wrap items-center justify-between gap-4 shadow-xl backdrop-blur-sm tactical-box" id="hud-status-strip">
+<div class="flex items-center gap-5">
+<div class="flex items-center gap-3">
+<div class="relative flex h-3.5 w-3.5">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-80" id="hud-pulse-ring"></span>
+<span class="relative inline-flex rounded-full h-3.5 w-3.5 bg-primary shadow-[0_0_10px_#34d399]" id="hud-pulse-core"></span>
+</div>
+<div class="flex flex-col">
+<span class="font-mono text-[9px] tracking-widest text-on-surface-variant uppercase font-bold">Biosphere Surveillance Status</span>
+<span class="font-headline tracking-wider text-base text-on-surface uppercase" id="hud-banner-title">LIVE CANOPY OVERWATCH // EPSG:3857</span>
+</div>
+</div>
+<div class="h-7 w-px bg-outline-variant hidden sm:block"></div>
+<div class="flex items-center gap-2 font-mono text-xs">
+<span class="text-on-surface-variant text-[11px] uppercase">Surveillance Cycle:</span>
+<span class="font-bold text-primary tracking-widest text-xs" id="cycle-ticker">1,402,891 HZ</span>
+</div>
+<div class="h-7 w-px bg-outline-variant hidden md:block"></div>
+<div class="flex items-center gap-2 font-mono text-xs">
+<span class="text-on-surface-variant text-[11px] uppercase">Wind Shear:</span>
+<span class="text-on-surface font-semibold text-xs" id="hud-wind">12 kts // WNW</span>
+</div>
+</div>
+<!-- Real-Time Interactive FFT Waveform Visualizer -->
+<div class="flex items-center gap-3 bg-surface-container-lowest px-3 py-1.5 rounded border border-outline-variant">
+<div class="flex items-center gap-1.5 font-mono text-[10px] text-on-surface-variant uppercase">
+<span class="material-symbols-outlined text-sm text-primary animate-pulse">graphic_eq</span>
+<span>Canopy FFT:</span>
+</div>
+<!-- 16 Live Animated Equalizer Bars -->
+<div class="flex items-end gap-[3px] h-6 w-36 px-1" id="audio-visualizer-bars">
+<div class="eq-bar w-1.5 bg-primary rounded-t-sm h-2"></div>
+<div class="eq-bar w-1.5 bg-primary rounded-t-sm h-3"></div>
+<div class="eq-bar w-1.5 bg-primary rounded-t-sm h-4"></div>
+<div class="eq-bar w-1.5 bg-primary rounded-t-sm h-2"></div>
+<div class="eq-bar w-1.5 bg-primary rounded-t-sm h-5"></div>
+<div class="eq-bar w-1.5 bg-primary rounded-t-sm h-3"></div>
+<div class="eq-bar w-1.5 bg-primary rounded-t-sm h-6"></div>
+<div class="eq-bar w-1.5 bg-primary rounded-t-sm h-4"></div>
+<div class="eq-bar w-1.5 bg-primary rounded-t-sm h-3"></div>
+<div class="eq-bar w-1.5 bg-primary rounded-t-sm h-5"></div>
+<div class="eq-bar w-1.5 bg-primary rounded-t-sm h-2"></div>
+<div class="eq-bar w-1.5 bg-primary rounded-t-sm h-4"></div>
+<div class="eq-bar w-1.5 bg-primary rounded-t-sm h-3"></div>
+<div class="eq-bar w-1.5 bg-primary rounded-t-sm h-2"></div>
+<div class="eq-bar w-1.5 bg-primary rounded-t-sm h-3"></div>
+<div class="eq-bar w-1.5 bg-primary rounded-t-sm h-2"></div>
+</div>
+<span class="font-mono text-[10px] text-primary font-bold" id="db-live-tag">34 dB</span>
+</div>
+</div>
+<!-- MAIN THREE-COLUMN GRID -->
+<div class="grid grid-cols-1 xl:grid-cols-12 gap-6 w-full items-start">
+<!-- LEFT COLUMN (4 Cols): Biosphere Spatial Radar & Interactive Scenario Injector -->
+<div class="xl:col-span-4 flex flex-col gap-6" id="view-col-left">
+<!-- 1. Interactive Biosphere Spatial Matrix (Interactive Radar Map) -->
+<div class="bg-surface-container-low rounded-xl border border-outline-variant p-5 shadow-2xl flex flex-col gap-4 relative tactical-box" id="biosphere-card">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2.5">
+<span class="material-symbols-outlined text-primary text-xl">radar</span>
+<div>
+<h2 class="font-headline tracking-wider uppercase text-on-surface text-base leading-tight">Biosphere Spatial Matrix</h2>
+<span class="font-mono text-[9px] text-on-surface-variant uppercase">Interactive Sector Grid • Click Sector to Probe</span>
+</div>
+</div>
+<div class="flex items-center gap-1.5 font-mono text-[10px] px-2 py-0.5 rounded bg-surface-container-highest border border-outline-variant text-primary font-semibold">
+<span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
+<span>LIDAR 12,000 HA</span>
+</div>
+</div>
+<!-- Tactical Spatial Radar Area -->
+<div class="relative bg-surface-container-lowest rounded-lg border border-outline-variant/80 p-3 min-h-[380px] overflow-hidden select-none" id="radar-canvas-container">
+<!-- Topographical Contour SVG Pattern Overlay -->
+<svg class="absolute inset-0 w-full h-full pointer-events-none opacity-25" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<pattern height="40" id="tacticalGrid" patternunits="userSpaceOnUse" width="40">
+<path d="M 40 0 L 0 0 0 40" fill="none" stroke="#223528" stroke-width="0.75"></path>
+<circle cx="20" cy="20" fill="#34d399" opacity="0.3" r="1"></circle>
+</pattern>
+</defs>
+<rect fill="url(#tacticalGrid)" height="100%" width="100%"></rect>
+<!-- Contour Elevation Lines -->
+<ellipse cx="65%" cy="45%" fill="none" opacity="0.4" rx="180" ry="120" stroke="#34d399" stroke-dasharray="3 4" stroke-width="0.5"></ellipse>
+<ellipse cx="65%" cy="45%" fill="none" opacity="0.3" rx="130" ry="85" stroke="#34d399" stroke-dasharray="4 4" stroke-width="0.6"></ellipse>
+<ellipse cx="65%" cy="45%" fill="none" opacity="0.2" rx="80" ry="50" stroke="#34d399" stroke-width="0.7"></ellipse>
+<!-- Triangulation Lines (Hidden by default, activated in Scenario 4) -->
+<g class="transition-opacity duration-500 opacity-0" id="triangulation-overlay">
+<line class="animate-pulse" stroke="#f87171" stroke-dasharray="4 2" stroke-width="2" x1="100" x2="240" y1="180" y2="185"></line>
+<line class="animate-pulse" stroke="#f87171" stroke-dasharray="4 2" stroke-width="2" x1="240" x2="180" y1="185" y2="280"></line>
+<line class="animate-pulse" stroke="#f87171" stroke-dasharray="4 2" stroke-width="2" x1="100" x2="180" y1="180" y2="280"></line>
+<circle class="animate-ping" cx="173" cy="215" fill="none" r="22" stroke="#f87171" stroke-width="1.5"></circle>
+<circle cx="173" cy="215" fill="#f87171" r="4"></circle>
+<text fill="#f87171" font-family="JetBrains Mono" font-size="9" font-weight="bold" x="180" y="210">INCURSION CENTROID</text>
+</g>
+</svg>
+<!-- Radar Sweep Beam (Radial) -->
+<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[420px] h-[420px] pointer-events-none opacity-20 radar-sweep-anim" id="radar-sweep-beam">
+<div class="w-full h-full rounded-full" style="background: conic-gradient(from 0deg, rgba(52, 211, 153, 0.4) 0deg, rgba(52, 211, 153, 0) 65deg, transparent 65deg);"></div>
+</div>
+<!-- Interactive 2x3 Sector Grid -->
+<div class="grid grid-cols-2 gap-2.5 h-full relative z-10 font-mono">
+<!-- Sector A1 -->
+<div class="sector-node cursor-pointer p-3 rounded border border-outline-variant/70 bg-surface-container/70 hover:border-primary hover:bg-surface-container-high transition-all flex flex-col justify-between min-h-[105px] relative group" id="sector-A1" onclick="selectSector('A1')">
+<div class="flex justify-between items-start">
+<div class="flex flex-col">
+<span class="text-[11px] font-bold text-on-surface">SEC // A1</span>
+<span class="text-[9px] text-on-surface-variant">North Ridge</span>
+</div>
+<span class="text-[9px] px-1.5 py-0.5 rounded bg-surface-container-highest text-primary font-bold sector-tag" id="tag-A1">S01 [OK]</span>
+</div>
+<div class="flex items-center justify-between text-[10px] text-on-surface-variant">
+<span id="db-A1">32 dB</span>
+<div class="flex items-center gap-1.5">
+<span class="text-[9px] opacity-60">SPL</span>
+<span class="w-2 h-2 rounded-full bg-primary" id="dot-A1"></span>
+</div>
+</div>
+<div class="radar-ping-ring absolute inset-0 m-auto w-12 h-12 rounded-full border border-primary/40 pointer-events-none opacity-0 transition-opacity"></div>
+</div>
+<!-- Sector A2 -->
+<div class="sector-node cursor-pointer p-3 rounded border border-outline-variant/70 bg-surface-container/70 hover:border-primary hover:bg-surface-container-high transition-all flex flex-col justify-between min-h-[105px] relative group" id="sector-A2" onclick="selectSector('A2')">
+<div class="flex justify-between items-start">
+<div class="flex flex-col">
+<span class="text-[11px] font-bold text-on-surface">SEC // A2</span>
+<span class="text-[9px] text-on-surface-variant">Eastern Canopy</span>
+</div>
+<span class="text-[9px] px-1.5 py-0.5 rounded bg-surface-container-highest text-primary font-bold sector-tag" id="tag-A2">S02 [OK]</span>
+</div>
+<div class="flex items-center justify-between text-[10px] text-on-surface-variant">
+<span id="db-A2">29 dB</span>
+<div class="flex items-center gap-1.5">
+<span class="text-[9px] opacity-60">SPL</span>
+<span class="w-2 h-2 rounded-full bg-primary" id="dot-A2"></span>
+</div>
+</div>
+<div class="radar-ping-ring absolute inset-0 m-auto w-12 h-12 rounded-full border border-primary/40 pointer-events-none opacity-0 transition-opacity"></div>
+</div>
+<!-- Sector B3 (Hotspot Area) -->
+<div class="sector-node cursor-pointer p-3 rounded border border-outline-variant/70 bg-surface-container/70 hover:border-primary hover:bg-surface-container-high transition-all flex flex-col justify-between min-h-[105px] relative group" id="sector-B3" onclick="selectSector('B3')">
+<div class="flex justify-between items-start">
+<div class="flex flex-col">
+<span class="text-[11px] font-bold text-on-surface">SEC // B3</span>
+<span class="text-[9px] text-on-surface-variant">Old Growth Sanctuary</span>
+</div>
+<span class="text-[9px] px-1.5 py-0.5 rounded bg-surface-container-highest text-primary font-bold sector-tag" id="tag-B3">S03 [OK]</span>
+</div>
+<div class="flex items-center justify-between text-[10px] text-on-surface-variant">
+<span id="db-B3">38 dB</span>
+<div class="flex items-center gap-1.5">
+<span class="text-[9px] opacity-60">SPL</span>
+<span class="w-2 h-2 rounded-full bg-primary" id="dot-B3"></span>
+</div>
+</div>
+<div class="radar-ping-ring absolute inset-0 m-auto w-16 h-16 rounded-full border-2 border-error pointer-events-none opacity-0" id="ping-B3"></div>
+</div>
+<!-- Sector B4 (Commercial Fringe) -->
+<div class="sector-node cursor-pointer p-3 rounded border border-outline-variant/70 bg-surface-container/70 hover:border-primary hover:bg-surface-container-high transition-all flex flex-col justify-between min-h-[105px] relative group" id="sector-B4" onclick="selectSector('B4')">
+<div class="flex justify-between items-start">
+<div class="flex flex-col">
+<span class="text-[11px] font-bold text-on-surface">SEC // B4</span>
+<span class="text-[9px] text-on-surface-variant">Concession Buffer</span>
+</div>
+<span class="text-[9px] px-1.5 py-0.5 rounded bg-surface-container-highest text-primary font-bold sector-tag" id="tag-B4">S04 [OK]</span>
+</div>
+<div class="flex items-center justify-between text-[10px] text-on-surface-variant">
+<span id="db-B4">34 dB</span>
+<div class="flex items-center gap-1.5">
+<span class="text-[9px] opacity-60">SPL</span>
+<span class="w-2 h-2 rounded-full bg-primary" id="dot-B4"></span>
+</div>
+</div>
+<div class="radar-ping-ring absolute inset-0 m-auto w-16 h-16 rounded-full border-2 border-tertiary pointer-events-none opacity-0" id="ping-B4"></div>
+</div>
+<!-- Sector C3 (Alpine Ridge) -->
+<div class="sector-node cursor-pointer p-3 rounded border border-outline-variant/70 bg-surface-container/70 hover:border-primary hover:bg-surface-container-high transition-all flex flex-col justify-between min-h-[105px] relative group" id="sector-C3" onclick="selectSector('C3')">
+<div class="flex justify-between items-start">
+<div class="flex flex-col">
+<span class="text-[11px] font-bold text-on-surface">SEC // C3</span>
+<span class="text-[9px] text-on-surface-variant">Ridge Crestline</span>
+</div>
+<span class="text-[9px] px-1.5 py-0.5 rounded bg-surface-container-highest text-primary font-bold sector-tag" id="tag-C3">S05 [OK]</span>
+</div>
+<div class="flex items-center justify-between text-[10px] text-on-surface-variant">
+<span id="db-C3">31 dB</span>
+<div class="flex items-center gap-1.5">
+<span class="text-[9px] opacity-60">SPL</span>
+<span class="w-2 h-2 rounded-full bg-primary" id="dot-C3"></span>
+</div>
+</div>
+<div class="radar-ping-ring absolute inset-0 m-auto w-16 h-16 rounded-full border-2 border-primary pointer-events-none opacity-0" id="ping-C3"></div>
+</div>
+<!-- Sector C4 (Communal Buffer) -->
+<div class="sector-node cursor-pointer p-3 rounded border border-outline-variant/70 bg-surface-container/70 hover:border-primary hover:bg-surface-container-high transition-all flex flex-col justify-between min-h-[105px] relative group" id="sector-C4" onclick="selectSector('C4')">
+<div class="flex justify-between items-start">
+<div class="flex flex-col">
+<span class="text-[11px] font-bold text-on-surface">SEC // C4</span>
+<span class="text-[9px] text-on-surface-variant">Outer Perimeter</span>
+</div>
+<span class="text-[9px] px-1.5 py-0.5 rounded bg-surface-container-highest text-on-surface-variant font-bold sector-tag" id="tag-C4">AUX RELAY</span>
+</div>
+<div class="flex items-center justify-between text-[10px] text-on-surface-variant">
+<span id="db-C4">27 dB</span>
+<div class="flex items-center gap-1.5">
+<span class="text-[9px] opacity-60">SPL</span>
+<span class="w-2 h-2 rounded-full bg-primary" id="dot-C4"></span>
+</div>
+</div>
+<div class="radar-ping-ring absolute inset-0 m-auto w-12 h-12 rounded-full border border-primary/40 pointer-events-none opacity-0 transition-opacity"></div>
+</div>
+</div>
+<!-- Map Overlay Footer Telemetry -->
+<div class="mt-3 pt-2.5 flex items-center justify-between font-mono text-[10px] text-on-surface-variant border-t border-outline-variant/40">
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+<span>5 Transceivers Synced</span>
+</div>
+<span class="text-primary font-bold tracking-wider" id="selected-sector-badge">CURRENT PROBE: SECTOR B3</span>
+</div>
+</div>
+</div>
+<!-- 2. Tactical Scenario Injector (Dynamic Live Injection Panel) -->
+<div class="bg-surface-container-low rounded-xl border border-outline-variant p-5 shadow-xl flex flex-col gap-3.5 tactical-box">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-tertiary text-xl">smart_toy</span>
+<div>
+<h3 class="font-headline tracking-wider uppercase text-on-surface text-base">Scenario Simulation Injector</h3>
+<span class="font-mono text-[9px] text-on-surface-variant uppercase">Interactive Live Verification Suite</span>
+</div>
+</div>
+<span class="font-mono text-[10px] uppercase text-tertiary font-bold px-2 py-0.5 rounded bg-tertiary-container/30 border border-tertiary/40">SYNTHETIC INJECT</span>
+</div>
+<p class="font-body text-xs text-on-surface-variant leading-relaxed">
+            Trigger real-time acoustic telemetry perturbations to observe autonomous multi-agent arbitration, dynamic radar triangulation, and drone deterrence sequencing:
+          </p>
+<div class="p-3 rounded-lg border border-primary/40 bg-surface-container-low">
+  <div class="font-mono text-[10px] text-primary mb-2">
+    LIVE AUDIO ANALYSIS
+  </div>
+
+  <input id="audio-file" type="file" accept="audio/*"
+    class="block w-full text-xs text-on-surface-variant" />
+
+  <select id="audio-sensor"
+    class="mt-2 w-full bg-surface-container-high border border-outline text-xs">
+    <option value="S01">S01 — A1</option>
+    <option value="S02" selected>S02 — A2</option>
+    <option value="S03">S03 — B3</option>
+    <option value="S04">S04 — C7</option>
+    <option value="S05">S05 — C3</option>
+    <option value="S06">S06 — C4</option>
+  </select>
+
+  <button onclick="analyzeAudio()"
+    class="mt-3 w-full p-2 rounded bg-primary text-pitch font-mono text-xs font-bold">
+    PLAY + ANALYZE
+  </button>
+
+  <p id="audio-result"
+    class="mt-2 font-mono text-[10px] text-on-surface-variant">
+    Upload chainsaw, gunshot, bird, or truck audio.
+  </p>
+
+  <div class="mt-3 pt-3 border-t border-outline-variant/40">
+    <div class="font-mono text-[10px] text-on-surface-variant mb-2 uppercase tracking-wider">Quick Samples (no upload)</div>
+    <div class="grid grid-cols-2 gap-2">
+      <button onclick="loadSampleAudio('bird.mp3', 'S01', 'bird')"
+        class="p-2 rounded bg-surface-container-high border border-outline-variant text-[11px] font-mono text-on-surface hover:border-primary transition-all">
+        🐦 BIRD
+      </button>
+      <button onclick="loadSampleAudio('truck.mp3', 'S02', 'truck')"
+        class="p-2 rounded bg-surface-container-high border border-outline-variant text-[11px] font-mono text-on-surface hover:border-secondary transition-all">
+        🚚 TRUCK
+      </button>
+      <button onclick="loadSampleAudio('chainsaw.mp3', 'S04', 'chainsaw')"
+        class="p-2 rounded bg-surface-container-high border border-outline-variant text-[11px] font-mono text-error hover:border-error transition-all">
+        🪚 CHAINSAW
+      </button>
+      <button onclick="loadSampleAudio('gunshot.mp3', 'S03', 'gunshot')"
+        class="p-2 rounded bg-surface-container-high border border-outline-variant text-[11px] font-mono text-error hover:border-error transition-all">
+        🔫 GUNSHOT
+      </button>
+    </div>
+  </div>
+</div>
+}<!-- Interactive Scenario Selector Buttons -->
+<div class="flex flex-col gap-2.5 font-mono">
+<!-- Scenario 1: Avian Chirp -->
+<button class="scenario-btn w-full p-3 rounded-lg bg-surface-container hover:bg-surface-container-high border border-outline-variant hover:border-primary/50 text-left flex items-center justify-between group transition-all" id="btn-scen-1" onclick="injectScenario(1)">
+<div class="flex flex-col gap-1">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-primary"></span>
+<span class="font-mono text-xs font-bold text-on-surface group-hover:text-primary transition-colors">01. ISOLATED ACOUSTIC PEAK</span>
+</div>
+<span class="text-[11px] text-on-surface-variant pl-4">Avian courtship chirp • 44dB • Transient wave</span>
+</div>
+<span class="text-[10px] font-bold px-2 py-1 rounded bg-primary/15 text-primary border border-primary/30">MONITOR</span>
+</button>
+<!-- Scenario 2: Concession Timber -->
+<button class="scenario-btn w-full p-3 rounded-lg bg-surface-container hover:bg-surface-container-high border border-outline-variant hover:border-secondary text-left flex items-center justify-between group transition-all" id="btn-scen-2" onclick="injectScenario(2)">
+<div class="flex flex-col gap-1">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+<span class="font-mono text-xs font-bold text-on-surface group-hover:text-secondary transition-colors">02. SCHEDULED TIMBER HARVEST</span>
+</div>
+<span class="text-[11px] text-on-surface-variant pl-4">Concession Permit #204-B Verified • Sector B4</span>
+</div>
+<span class="text-[10px] font-bold px-2 py-1 rounded bg-secondary-container text-on-secondary border border-outline">PERMITTED</span>
+</button>
+<!-- Scenario 3: Weak Multi-Path Disagreement -->
+<button class="scenario-btn w-full p-3 rounded-lg bg-surface-container hover:bg-surface-container-high border border-outline-variant hover:border-tertiary text-left flex items-center justify-between group transition-all" id="btn-scen-3" onclick="injectScenario(3)">
+<div class="flex flex-col gap-1">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-tertiary"></span>
+<span class="font-mono text-xs font-bold text-on-surface group-hover:text-tertiary transition-colors">03. MULTI-PATH BOUNDARY CONFLICT</span>
+</div>
+<span class="text-[11px] text-on-surface-variant pl-4">Rock diffraction ambiguity • Sector C3 boundary</span>
+</div>
+<span class="text-[10px] font-bold px-2 py-1 rounded bg-tertiary-container/40 text-tertiary border border-tertiary/40">ARBITRATE</span>
+</button>
+<!-- Scenario 4: CRITICAL CHAINSAW OUTBREAK -->
+<button class="scenario-btn w-full p-3 rounded-lg bg-surface-container hover:bg-surface-container-high border border-outline-variant hover:border-error text-left flex items-center justify-between group transition-all relative overflow-hidden" id="btn-scen-4" onclick="injectScenario(4)">
+<div class="flex flex-col gap-1">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-error animate-ping"></span>
+<span class="font-mono text-xs font-bold text-error group-hover:text-red-400 transition-colors">04. CRITICAL CHAINSAW INCURSION</span>
+</div>
+<span class="text-[11px] text-on-surface-variant pl-4">Sector B3 • 92dB • Triangulated Poaching Spike</span>
+</div>
+<span class="text-[10px] font-bold px-2.5 py-1 rounded bg-error text-on-error shadow-[0_0_10px_rgba(248,113,113,0.4)] animate-pulse">CRITICAL</span>
+</button>
+</div>
+</div>
+</div>
+<!-- CENTER COLUMN (5 Cols): Multi-Agent Chain-of-Reasoning Pipeline & Key Telemetry -->
+<div class="xl:col-span-5 flex flex-col gap-6" id="view-col-center">
+<!-- Multi-Agent Consensus Chain -->
+<div class="bg-surface-container-low rounded-xl border border-outline-variant p-5 shadow-2xl flex flex-col gap-4 tactical-box">
+<div class="flex items-center justify-between border-b border-outline-variant/60 pb-3">
+<div class="flex items-center gap-2.5">
+<span class="material-symbols-outlined text-primary text-xl">device_hub</span>
+<div>
+<h2 class="font-headline tracking-wider uppercase text-on-surface text-base">Multi-Agent Arbitration Chain</h2>
+<span class="font-mono text-[9px] text-on-surface-variant uppercase">Asynchronous Multi-Node Consensus</span>
+</div>
+</div>
+<div class="flex items-center gap-2 font-mono">
+<span class="font-mono text-[10px] tracking-wider uppercase px-2.5 py-0.5 rounded bg-primary/15 border border-primary/40 text-primary font-bold" id="pipeline-status-badge">PIPELINE SYNCHRONIZED</span>
+</div>
+</div>
+<!-- 6 Specialized AI Agents Sequential Workflow -->
+<div class="flex flex-col gap-2.5 font-mono" id="pipeline-cards">
+<!-- 1. Acoustic Classification Agent -->
+<div class="agent-step p-3 rounded-lg bg-surface-container/70 border border-outline-variant transition-all flex flex-col gap-1.5" id="agent-acoustic">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2.5">
+<div class="w-6 h-6 rounded bg-surface-container-high border border-outline-variant flex items-center justify-center text-primary text-xs" id="agent-icon-acoustic">
+<span class="material-symbols-outlined text-sm">graphic_eq</span>
+</div>
+<span class="text-xs font-bold text-on-surface">01. ACOUSTIC CLASSIFIER</span>
+</div>
+<span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-surface-container-high text-primary status-tag" id="tag-agent-acoustic">LISTENING</span>
+</div>
+<p class="font-mono text-[11px] text-on-surface-variant pl-8 leading-relaxed log-text">
+                Continuous FFT sampling (20Hz - 22kHz). Baseline bio-acoustics nominal. No harmonic machinery notches detected.
+              </p>
+</div>
+<!-- 2. Spatial Localization Agent -->
+<div class="agent-step p-3 rounded-lg bg-surface-container/70 border border-outline-variant transition-all flex flex-col gap-1.5" id="agent-localization">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2.5">
+<div class="w-6 h-6 rounded bg-surface-container-high border border-outline-variant flex items-center justify-center text-primary text-xs" id="agent-icon-localization">
+<span class="material-symbols-outlined text-sm">share_location</span>
+</div>
+<span class="text-xs font-bold text-on-surface">02. SPATIAL LOCALIZATION</span>
+</div>
+<span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-surface-container-high text-on-surface-variant status-tag" id="tag-agent-localization">STANDBY</span>
+</div>
+<p class="font-mono text-[11px] text-on-surface-variant pl-8 leading-relaxed log-text">
+                TDoA solver aligned across nodes S01-S05. Ready for delta-arrival triangulation. Error bound ±2.1m.
+              </p>
+</div>
+<!-- 3. Forestry Registry Context Agent -->
+<div class="agent-step p-3 rounded-lg bg-surface-container/70 border border-outline-variant transition-all flex flex-col gap-1.5" id="agent-context">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2.5">
+<div class="w-6 h-6 rounded bg-surface-container-high border border-outline-variant flex items-center justify-center text-primary text-xs" id="agent-icon-context">
+<span class="material-symbols-outlined text-sm">verified_user</span>
+</div>
+<span class="text-xs font-bold text-on-surface">03. FORESTRY CADASTRE REGISTRY</span>
+</div>
+<span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-surface-container-high text-on-surface-variant status-tag" id="tag-agent-context">STANDBY</span>
+</div>
+<p class="font-mono text-[11px] text-on-surface-variant pl-8 leading-relaxed log-text">
+                Queried State GIS Sanctuary Cadastre. Sector B3 registered as Core Old-Growth Bio-Sanctuary. Commercial extraction strictly prohibited.
+              </p>
+</div>
+<!-- 4. Threat Assessment Agent -->
+<div class="agent-step p-3 rounded-lg bg-surface-container/70 border border-outline-variant transition-all flex flex-col gap-1.5" id="agent-threat">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2.5">
+<div class="w-6 h-6 rounded bg-surface-container-high border border-outline-variant flex items-center justify-center text-primary text-xs" id="agent-icon-threat">
+<span class="material-symbols-outlined text-sm">gavel</span>
+</div>
+<span class="text-xs font-bold text-on-surface">04. THREAT RISK EVALUATOR</span>
+</div>
+<span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-surface-container-high text-on-surface-variant status-tag" id="tag-agent-threat">STANDBY</span>
+</div>
+<p class="font-mono text-[11px] text-on-surface-variant pl-8 leading-relaxed log-text">
+                Multi-attribute risk weighting configured. Threshold parameters: Acoustic dB &gt; 80, Duration &gt; 3s, Non-Permitted Area.
+              </p>
+</div>
+<!-- 5. Consensus & Arbitration Coordinator -->
+<div class="agent-step p-3 rounded-lg bg-surface-container/70 border border-outline-variant transition-all flex flex-col gap-1.5" id="agent-coordinator">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2.5">
+<div class="w-6 h-6 rounded bg-surface-container-high border border-outline-variant flex items-center justify-center text-primary text-xs" id="agent-icon-coordinator">
+<span class="material-symbols-outlined text-sm">balance</span>
+</div>
+<span class="text-xs font-bold text-on-surface">05. CONSENSUS COORDINATOR</span>
+</div>
+<span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-surface-container-high text-on-surface-variant status-tag" id="tag-agent-coordinator">STANDBY</span>
+</div>
+<p class="font-mono text-[11px] text-on-surface-variant pl-8 leading-relaxed log-text">
+                Synthesizing sub-agent confidence vectors. Resolution threshold requires ≥ 85% consensus for immediate drone launch.
+              </p>
+</div>
+<!-- 6. Field Response Dispatcher -->
+<div class="agent-step p-3 rounded-lg bg-surface-container/70 border border-outline-variant transition-all flex flex-col gap-1.5" id="agent-response">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2.5">
+<div class="w-6 h-6 rounded bg-surface-container-high border border-outline-variant flex items-center justify-center text-primary text-xs" id="agent-icon-response">
+<span class="material-symbols-outlined text-sm">send_and_archive</span>
+</div>
+<span class="text-xs font-bold text-on-surface">06. FIELD DISPATCH &amp; DETERRENCE</span>
+</div>
+<span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-surface-container-high text-on-surface-variant status-tag" id="tag-agent-response">STANDBY</span>
+</div>
+<p class="font-mono text-[11px] text-on-surface-variant pl-8 leading-relaxed log-text">
+                Autonomous drone docking bay active. Directional acoustic siren and forest ranger dispatch queued on LoRa relay 915.2MHz.
+              </p>
+</div>
+</div>
+</div>
+<!-- 4 Quick Telemetry Analytics Metric Tiles -->
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 font-mono">
+<div class="bg-surface-container-low border border-outline-variant p-3.5 rounded-lg flex flex-col gap-1 tactical-box">
+<span class="text-[9px] text-on-surface-variant uppercase tracking-wider">Alerts (24h)</span>
+<span class="font-headline text-2xl text-on-surface" id="stat-alerts">142</span>
+<span class="text-[9px] text-primary flex items-center gap-0.5"><span class="material-symbols-outlined text-xs">trending_down</span> -8% wk</span>
+</div>
+<div class="bg-surface-container-low border border-outline-variant p-3.5 rounded-lg flex flex-col gap-1 tactical-box">
+<span class="text-[9px] text-on-surface-variant uppercase tracking-wider">Hotspot Focus</span>
+<span class="font-headline text-2xl text-tertiary" id="stat-hotspot">SEC B3</span>
+<span class="text-[9px] text-tertiary flex items-center gap-0.5"><span class="material-symbols-outlined text-xs">warning</span> High Val</span>
+</div>
+<div class="bg-surface-container-low border border-outline-variant p-3.5 rounded-lg flex flex-col gap-1 tactical-box">
+<span class="text-[9px] text-on-surface-variant uppercase tracking-wider">False Alarm Rate</span>
+<span class="font-headline text-2xl text-primary">3.8%</span>
+<span class="text-[9px] text-primary flex items-center gap-0.5"><span class="material-symbols-outlined text-xs">verified</span> Certified</span>
+</div>
+<div class="bg-surface-container-low border border-outline-variant p-3.5 rounded-lg flex flex-col gap-1 tactical-box">
+<span class="text-[9px] text-on-surface-variant uppercase tracking-wider">Arbitration Conf</span>
+<span class="font-headline text-2xl text-on-surface" id="stat-conf">98.4%</span>
+<span class="text-[9px] text-on-surface-variant flex items-center gap-0.5"><span class="material-symbols-outlined text-xs">neurology</span> ML Ensemble</span>
+</div>
+</div>
+</div>
+<!-- RIGHT COLUMN (3 Cols): Evaluated Threat Gauge & Sentinel Live Event Stream -->
+<div class="xl:col-span-3 flex flex-col gap-6" id="view-col-right">
+<!-- Threat Detail Card with Dynamic Circular Gauge -->
+<div class="bg-surface-container-low rounded-xl border border-outline-variant p-5 shadow-2xl flex flex-col gap-4 tactical-box" id="threat-context-card">
+<div class="flex items-center justify-between border-b border-outline-variant/60 pb-3">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-xl" id="threat-header-icon">policy</span>
+<h2 class="font-headline tracking-wider uppercase text-on-surface text-base">Evaluated Threat Context</h2>
+</div>
+<span class="font-mono text-[10px] font-bold px-2 py-0.5 rounded bg-primary/15 border border-primary/40 text-primary uppercase" id="threat-badge-top">NOMINAL</span>
+</div>
+<!-- Score Gauge Ring Display -->
+<div class="p-3.5 rounded-lg bg-surface-container border border-outline-variant flex items-center justify-between gap-3">
+<div class="flex flex-col">
+<span class="font-mono text-[9px] uppercase tracking-wider text-on-surface-variant">Threat Severity Score</span>
+<div class="flex items-baseline gap-1 mt-0.5 font-mono">
+<span class="font-headline text-4xl text-on-surface" id="threat-score-num">08</span>
+<span class="text-xs text-on-surface-variant font-bold">/ 100</span>
+</div>
+<span class="text-[10px] font-mono text-primary font-bold mt-0.5" id="threat-score-label">Background Canopy Murmur</span>
+</div>
+<!-- Dynamic SVG Circular Ring Gauge -->
+<div class="relative w-16 h-16 flex items-center justify-center shrink-0">
+<svg class="w-16 h-16 transform -rotate-90" viewbox="0 0 36 36">
+<path class="text-surface-highest stroke-current" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke-width="3"></path>
+<path class="text-primary stroke-current transition-all duration-700 ease-out" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" id="score-ring-path" stroke-dasharray="8, 100" stroke-linecap="round" stroke-width="3"></path>
+</svg>
+<span class="material-symbols-outlined absolute text-lg text-primary" id="threat-center-icon">eco</span>
+</div>
+</div>
+<!-- Metadata Spec Grid -->
+<div class="flex flex-col gap-2 font-mono text-xs">
+<div class="flex items-center justify-between py-1.5 border-b border-outline-variant/40">
+<span class="text-on-surface-variant text-[11px]">Reporting Node:</span>
+<span class="text-on-surface font-semibold" id="detail-sensor">S01 - North Crest</span>
+</div>
+<div class="flex items-center justify-between py-1.5 border-b border-outline-variant/40">
+<span class="text-on-surface-variant text-[11px]">Sector Designation:</span>
+<span class="text-on-surface font-semibold" id="detail-sector">Sector A1</span>
+</div>
+<div class="flex items-center justify-between py-1.5 border-b border-outline-variant/40">
+<span class="text-on-surface-variant text-[11px]">Ensemble Confidence:</span>
+<span class="text-primary font-bold" id="detail-confidence">96.2%</span>
+</div>
+<div class="flex items-center justify-between py-1.5 border-b border-outline-variant/40">
+<span class="text-on-surface-variant text-[11px]">Ranger Radio Dispatch:</span>
+<span class="text-on-surface font-bold text-[11px]" id="detail-ranger">STANDBY (PASSIVE)</span>
+</div>
+<div class="flex items-center justify-between py-1.5 border-b border-outline-variant/40">
+<span class="text-on-surface-variant text-[11px]">Dispatched Command:</span>
+<span class="text-primary font-bold text-[10px] px-1.5 py-0.5 rounded bg-surface-container-high border border-outline-variant" id="detail-action">MONITOR_ONLY</span>
+</div>
+</div>
+<!-- Explainable AI Diagnostic Log Box -->
+<div class="bg-surface-container p-3 rounded-lg border border-outline-variant flex flex-col gap-1.5 font-mono">
+<div class="flex items-center justify-between">
+<span class="text-[9px] text-primary uppercase font-bold flex items-center gap-1">
+<span class="material-symbols-outlined text-xs">psychology</span>
+                EXPLAINABLE AI DIAGNOSTIC
+              </span>
+<span class="text-[9px] text-on-surface-variant">MODEL: BIO-XG4</span>
+</div>
+<p class="font-mono text-[11px] text-on-surface leading-relaxed" id="detail-explanation">
+              Baseline natural canopy vibrations detected. Frequency profile matches high-altitude branch sway under 12 knot wind gusts. No harmonic industrial machine markers detected.
+            </p>
+</div>
+</div>
+<!-- Real-Time Event Stream Log with Interactive Filters -->
+<div class="bg-surface-container-low rounded-xl border border-outline-variant p-5 shadow-xl flex flex-col gap-3.5 tactical-box">
+<div class="flex items-center justify-between border-b border-outline-variant/60 pb-2">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-lg">stream</span>
+<h3 class="font-headline tracking-wider uppercase text-on-surface text-base">Sentinel Live Stream</h3>
+</div>
+<div class="flex items-center gap-1 font-mono text-[9px]">
+<button class="px-1.5 py-0.5 rounded bg-surface-container-high text-primary border border-primary/40 font-bold filter-btn active-filter" id="filter-all" onclick="filterFeed('ALL')">ALL</button>
+<button class="px-1.5 py-0.5 rounded bg-surface-container text-on-surface-variant border border-outline-variant filter-btn" id="filter-critical" onclick="filterFeed('CRITICAL')">CRIT</button>
+<button class="px-1.5 py-0.5 rounded bg-surface-container text-on-surface-variant border border-outline-variant filter-btn" id="filter-audio" onclick="filterFeed('AUDIO')">AUDIO</button>
+</div>
+</div>
+<!-- Feed Items Scrollable Window -->
+<div class="flex flex-col gap-2 font-mono overflow-y-auto max-h-[300px] pr-1" id="live-threat-feed">
+<div class="feed-entry p-2.5 rounded bg-surface-container border border-outline-variant flex flex-col gap-1 transition-all" data-type="AUDIO">
+<div class="flex items-center justify-between text-[10px]">
+<span class="text-on-surface-variant">14:02:45 UTC</span>
+<span class="px-1.5 py-0.2 rounded bg-surface-container-high text-primary font-bold border border-primary/30 text-[9px]">INFO</span>
+</div>
+<span class="text-xs text-on-surface font-semibold">Node S01 self-calibration complete</span>
+<span class="text-[10px] text-on-surface-variant">Spectral drift &lt; 0.02% • Sector A1</span>
+</div>
+<div class="feed-entry p-2.5 rounded bg-surface-container border border-outline-variant flex flex-col gap-1 transition-all" data-type="ALL">
+<div class="flex items-center justify-between text-[10px]">
+<span class="text-on-surface-variant">14:00:12 UTC</span>
+<span class="px-1.5 py-0.2 rounded bg-surface-container-high text-on-surface-variant font-bold border border-outline text-[9px]">ROUTINE</span>
+</div>
+<span class="text-xs text-on-surface font-semibold">Mesh LoRa heartbeat synchronized</span>
+<span class="text-[10px] text-on-surface-variant">5 nodes active across 12,000 hectares</span>
+</div>
+<div class="feed-entry p-2.5 rounded bg-surface-container border border-outline-variant flex flex-col gap-1 transition-all" data-type="ALL">
+<div class="flex items-center justify-between text-[10px]">
+<span class="text-on-surface-variant">13:54:19 UTC</span>
+<span class="px-1.5 py-0.2 rounded bg-surface-container-high text-secondary font-bold border border-outline text-[9px]">LOG</span>
+</div>
+<span class="text-xs text-on-surface font-semibold">Recon Drone UAV #02 docked</span>
+<span class="text-[10px] text-on-surface-variant">Battery: 99% • Armed for rapid launch</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+<!-- JAVASCRIPT: COMPLETE INTERACTIVE COMMAND ENGINE -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+  const SUPABASE_URL = "https://ezoegfonzbsluxdvxogn.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_myqjBkP38RWVfvl5rptkcQ_OSlyfI6b";
+
+  const supabaseClient = window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_ANON_KEY
+  );
+  
+  // REALTIME THREAT LISTENER
+
+const threatChannel = supabaseClient
+  .channel("forest-threats")
+  .on(
+    "postgres_changes",
+    {
+      event: "INSERT",
+      schema: "public",
+      table: "threats"
+    },
+    (payload) => {
+      console.log("🔥 NEW THREAT FROM SUPABASE:", payload);
+
+      const threat = payload.new;
+
+      console.log("Threat data:", {
+        incident_id: threat.incident_id,
+        threat_level: threat.threat_level,
+        risk_score: threat.risk_score,
+        action: threat.action,
+        notify_ranger: threat.notify_ranger,
+        status: threat.status
+      });
+
+      handleSupabaseThreat(threat);
+      // Real-time refresh: pull events + agent decisions for this new incident
+      if (threat.incident_id) {
+        (async () => {
+          const events = await loadLatestEvents(threat.incident_id);
+          processSupabaseEvents(events, threat.threat_level);
+
+          const agentDecisions = await loadAgentDecisions(threat.incident_id);
+          if (agentDecisions && agentDecisions.length > 0) {
+            animatePipelineAgents(agentDecisions);
+          }
+        })();
+      }
+    }
+  )
+  .subscribe((status) => {
+    console.log("🌲 Forest Sentinel Realtime:", status);
+  });
+async function loadLatestThreat() {
+  const { data, error } = await supabaseClient
+    .from("threats")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error("❌ Failed to load latest threat:", error);
+    showConnectionError("CONNECTION ERROR // COULD NOT LOAD THREAT DATA");
+    return;
+  }
+
+  if (!data) {
+    console.log("🌲 No threats found in Supabase.");
+    return;
+  }
+
+  console.log("🌲 Latest threat loaded from Supabase:", data);
+
+  handleSupabaseThreat(data);
+  return data;
+}
+function showConnectionError(message) {
+    const bannerTitle = document.getElementById('hud-banner-title');
+    if (bannerTitle) {
+        bannerTitle.textContent = `⚠ ${message}`;
+        bannerTitle.classList.add('text-error');
+    }
+}
+
+async function loadLatestEvents(incidentId) {
+  if (!incidentId) {
+    console.log("🌲 No incident ID provided for event lookup.");
+    return;
+  }
+
+  const { data, error } = await supabaseClient
+    .from("events")
+    .select("*")
+    .eq("incident_id", incidentId);
+
+  if (error) {
+    console.error("❌ Failed to load events:", error);
+    showConnectionError("CONNECTION ERROR // COULD NOT LOAD EVENT DATA");
+    return;
+  }
+
+  console.log("🌲 Events loaded for incident:", incidentId, data);
+
+  return data;
+}
+
+function switchView(view) {
+  document.querySelectorAll('.nav-link').forEach(link => {
+    link.classList.remove('bg-primary-container/60', 'border-l-2', 'border-primary', 'text-on-primary-container', 'font-semibold', 'shadow-sm');
+    link.classList.add('text-on-surface-variant');
+    const icon = link.querySelector('.material-symbols-outlined');
+    if (icon) icon.classList.remove('text-primary');
+  });
+
+  const activeLink = document.querySelector(`.nav-link[data-view="${view}"]`);
+  if (activeLink) {
+    activeLink.classList.add('bg-primary-container/60', 'border-l-2', 'border-primary', 'text-on-primary-container', 'font-semibold', 'shadow-sm');
+    activeLink.classList.remove('text-on-surface-variant');
+    const icon = activeLink.querySelector('.material-symbols-outlined');
+    if (icon) icon.classList.add('text-primary');
+  }
+
+  const left = document.getElementById('view-col-left');
+  const center = document.getElementById('view-col-center');
+  const right = document.getElementById('view-col-right');
+
+  [left, center, right].forEach(col => {
+    if (col) col.classList.remove('hidden', 'xl:col-span-4', 'xl:col-span-5', 'xl:col-span-3', 'xl:col-span-12');
+  });
+
+  if (view === 'overwatch') {
+    left.classList.add('xl:col-span-4');
+    center.classList.add('xl:col-span-5');
+    right.classList.add('xl:col-span-3');
+  } else if (view === 'sensors') {
+    left.classList.add('xl:col-span-12');
+    center.classList.add('hidden');
+    right.classList.add('hidden');
+  } else if (view === 'pipeline') {
+    center.classList.add('xl:col-span-12');
+    left.classList.add('hidden');
+    right.classList.add('hidden');
+  } else if (view === 'logs') {
+    right.classList.add('xl:col-span-12');
+    left.classList.add('hidden');
+    center.classList.add('hidden');
+    filterFeed('ALL');
+  } else if (view === 'incursions') {
+    right.classList.add('xl:col-span-12');
+    left.classList.add('hidden');
+    center.classList.add('hidden');
+    filterFeed('CRITICAL');
+  }
+}
+async function loadAgentDecisions(incidentId) {
+    if (!incidentId) {
+        console.log("🌲 No incident ID provided for agent decisions.");
+        return;
+    }
+
+    const { data, error } = await supabaseClient
+        .from("agent_decisions")
+        .select("*")
+        .eq("incident_id", incidentId);
+
+    if (error) {
+        console.error("❌ Failed to load agent decisions:", error);
+        showConnectionError("CONNECTION ERROR // COULD NOT LOAD AGENT DECISIONS");
+        return;
+    }
+
+    console.log("🤖 REAL AGENT DECISIONS:", data);
+
+    return data;
+}
+function processSupabaseEvents(events, severity) {
+    if (!events || events.length === 0) {
+        console.log("🌲 No events to process.");
+        return;
+    }
+
+    const sensorSummary = events.map(event => ({
+        sensor_id: event.sensor_id,
+        event_type: event.event_type,
+        sector: event.sector,
+        confidence: event.confidence
+    }));
+
+    console.log("🌲 SENSOR SUMMARY:", sensorSummary);
+
+    // Count events by real Supabase sector
+    const sortedByTime = [...sensorSummary].sort((a, b) => {
+      const ta = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const tb = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return ta - tb;
+  });
+  const mostLikelySector = sortedByTime[sortedByTime.length - 1]?.sector;
+
+    console.log("🌲 MOST LIKELY SECTOR:", mostLikelySector);
+
+    // -----------------------------
+    // Update threat detail panel
+    // -----------------------------
+
+    const sensorElement = document.getElementById("detail-sensor");
+
+    if (sensorElement) {
+        const sensorIds = sensorSummary
+            .map(event => event.sensor_id)
+            .filter(Boolean);
+
+        sensorElement.textContent = sensorIds.join(", ");
+    }
+
+    const sectorElement = document.getElementById("detail-sector");
+
+    if (sectorElement && mostLikelySector) {
+        sectorElement.textContent = `Sector ${mostLikelySector}`;
+    }
+    highlightSectorFromRealData(mostLikelySector, severity);
+    // Update bottom live sector indicator
+    const probeBadge = document.getElementById("selected-sector-badge");
+
+    if (probeBadge && mostLikelySector) {
+      probeBadge.textContent = `PROBED SECTOR: ${mostLikelySector}`;
+      
+}
+
+    // -----------------------------
+    // Update the 2x3 sector grid
+    // -----------------------------
+
+    sensorSummary.forEach(event => {
+        if (!event.sensor_id || !event.sector) return;
+
+        const sensorId = event.sensor_id;
+        const realSector = event.sector;
+
+        // Find the card currently associated with this sensor
+        const tag = Array.from(
+            document.querySelectorAll(".sector-tag")
+        ).find(el =>
+            el.textContent.trim().startsWith(sensorId)
+        );
+
+        if (!tag) return;
+
+        const card = tag.closest(".sector-node");
+
+        if (!card) return;
+
+        // Update displayed sector name
+        const sectorLabel = card.querySelector(
+            ".text-\\[11px\\]"
+        );
+
+        if (sectorLabel) {
+            sectorLabel.textContent = `SEC // ${realSector}`;
+        }
+        const status =
+  severity === "CRITICAL" || severity === "HIGH"
+    ? "CRITICAL"
+    : severity === "MEDIUM"
+      ? "WATCH"
+      : "OK";
+
+tag.innerHTML = `
+  ${sensorId}<br>
+  <span class="${
+    status === "CRITICAL"
+      ? "text-error"
+      : status === "WATCH"
+        ? "text-tertiary"
+        : "text-primary"
+  }">[${status}]</span>
+`;
+
+        console.log(
+            `🌲 GRID UPDATED: ${sensorId} → Sector ${realSector}`
+        );
+    });
+
+    return sensorSummary;
+  }
+
+function highlightSectorFromRealData(sectorId, severity) {
+    if (!sectorId) return;
+
+    ['A1', 'A2', 'B3', 'B4', 'C3', 'C4'].forEach(sec => {
+        const el = document.getElementById(`sector-${sec}`);
+        if (el) {
+            el.classList.remove(
+                'bg-error/20', 'border-error',
+                'bg-tertiary/20', 'border-tertiary',
+                'bg-secondary/20', 'border-secondary',
+                'bg-primary/20', 'border-primary'
+            );
+        }
+    });
+
+    ['ping-B3', 'ping-B4', 'ping-C3'].forEach(pid => {
+        const p = document.getElementById(pid);
+        if (p) {
+            p.classList.add('opacity-0');
+            p.classList.remove('animate-ping');
+        }
+    });
+
+    const targetSector = document.getElementById(`sector-${sectorId}`);
+    if (!targetSector) return;
+
+    if (severity === 'CRITICAL' || severity === 'HIGH') {
+        targetSector.classList.add('bg-error/20', 'border-error');
+    } else if (severity === 'MEDIUM') {
+        targetSector.classList.add('bg-tertiary/20', 'border-tertiary');
+    } else {
+        targetSector.classList.add('bg-primary/20', 'border-primary');
+    }
+
+    const pingRing = document.getElementById(`ping-${sectorId}`);
+    if (pingRing) {
+        pingRing.classList.remove('opacity-0');
+        pingRing.classList.add('animate-ping');
+    }
+}
+
+let audioCtx;
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+
+function playSiren() {
+  const ctx = getAudioCtx();
+  const duration = 1.2;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'sawtooth';
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  gain.gain.setValueAtTime(0.15, ctx.currentTime);
+  osc.frequency.setValueAtTime(600, ctx.currentTime);
+  osc.frequency.linearRampToValueAtTime(1200, ctx.currentTime + duration / 2);
+  osc.frequency.linearRampToValueAtTime(600, ctx.currentTime + duration);
+  osc.start();
+  osc.stop(ctx.currentTime + duration);
+}
+
+function playChime() {
+  const ctx = getAudioCtx();
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(880, ctx.currentTime);
+  gain.gain.setValueAtTime(0.1, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start();
+  osc.stop(ctx.currentTime + 0.4);
+}
+// Handle a real threat coming from Supabase
+function handleSupabaseThreat(threat) {
+  liveIncidentActive = true;
+  if (!threat) return;
+
+  const severity = threat.threat_level || "LOW";
+  const score = Number(threat.risk_score || 0);
+  const autonomousBlocked = !isAutonomousActive && (severity === "CRITICAL" || severity === "HIGH");
+  if (severity === "CRITICAL" || severity === "HIGH") {
+    playSiren();
+  } else {
+    playChime();
+  }
+  console.log("🌲 FULL THREAT OBJECT:", threat);
+
+  console.log("🚨 PROCESSING LIVE THREAT:", {
+    incident_id: threat.incident_id,
+    severity,
+    score
+  });
+
+  // Update the threat score
+  const scoreEl = document.getElementById("threat-score-num");
+  if (scoreEl) {
+    scoreEl.textContent = String(score).padStart(2, "0");
+  }
+
+  // Update the threat badge
+  const badge = document.getElementById("threat-badge-top");
+
+  if (badge) {
+    badge.textContent = severity;
+
+    if (severity === "CRITICAL") {
+      badge.className =
+        "font-mono text-[10px] font-bold px-2 py-0.5 rounded bg-error text-on-error uppercase shadow-[0_0_10px_rgba(248,113,113,0.4)]";
+    } else if (severity === "HIGH") {
+      badge.className =
+        "font-mono text-[10px] font-bold px-2 py-0.5 rounded bg-error-container text-error uppercase border border-error";
+    } else if (severity === "MEDIUM") {
+      badge.className =
+        "font-mono text-[10px] font-bold px-2 py-0.5 rounded bg-tertiary-container text-tertiary uppercase border border-tertiary/40";
+    } else {
+      badge.className =
+        "font-mono text-[10px] font-bold px-2 py-0.5 rounded bg-primary/20 border border-primary/40 text-primary uppercase";
+    }
+  }
+
+  // Update score ring
+  const ring = document.getElementById("score-ring-path");
+
+  if (ring) {
+    ring.setAttribute("stroke-dasharray", `${score}, 100`);
+
+    if (severity === "CRITICAL" || severity === "HIGH") {
+      ring.style.stroke = "#f87171";
+    } else if (severity === "MEDIUM") {
+      ring.style.stroke = "#fbbf24";
+    } else {
+      ring.style.stroke = "#34d399";
+    }
+  }
+
+  // Update action
+  const actionEl = document.getElementById("detail-action");
+
+  if (actionEl) {
+    actionEl.textContent = threat.action || "MONITOR";
+
+    if (severity === "CRITICAL" || severity === "HIGH") {
+      actionEl.className =
+        "text-error font-bold text-[10px] px-1.5 py-0.5 rounded bg-error-container border border-error";
+    } else {
+      actionEl.className =
+        "text-primary font-bold text-[10px] px-1.5 py-0.5 rounded bg-surface-container-high border border-outline-variant";
+    }
+  }
+
+  // Update ranger status
+  const rangerEl = document.getElementById("detail-ranger");
+
+  if (rangerEl) {
+    rangerEl.textContent =
+      threat.notify_ranger ? "RANGER NOTIFIED" : "STANDBY (PASSIVE)";
+  }
+
+  // Update explanation
+  const explanationEl = document.getElementById("detail-explanation");
+
+  if (explanationEl) {
+    explanationEl.textContent =
+      threat.reason || "No explanation returned.";
+  }
+
+  // Update HUD
+  updateLiveThreatHud(severity, threat);
+  // Animate audio visualizer to match real severity
+  // Animate audio visualizer to match real severity
+  animateAudioBars(severity);
+
+  // Show triangulation overlay for real critical incidents
+  // (unless autonomous response is manually paused)
+  const triOverlay = document.getElementById('triangulation-overlay');
+  if (triOverlay) {
+    if (severity === 'CRITICAL' && !autonomousBlocked) {
+      triOverlay.classList.remove('opacity-0');
+    } else {
+      triOverlay.classList.add('opacity-0');
+    }
+  }
+
+  if (autonomousBlocked) {
+    console.log("⏸️ Autonomous response paused — visual escalation suppressed for this incident.");
+  }
+
+  // Add incident to live stream
+  appendSupabaseThreatToFeed(threat);
+}
+
+
+// Update HUD using real Supabase threat
+function updateLiveThreatHud(severity, threat) {
+
+  const bannerTitle = document.getElementById("hud-banner-title");
+  const defconInd = document.getElementById("defcon-indicator");
+  const defconText = document.getElementById("defcon-text");
+  const defconBadge = document.getElementById("defcon-badge");
+  const pulseCore = document.getElementById("hud-pulse-core");
+  const pulseRing = document.getElementById("hud-pulse-ring");
+  const hudBox = document.getElementById("hud-status-strip");
+  const incidentIndicator = document.getElementById("nav-incident-indicator");
+
+  if (severity === "CRITICAL") {
+
+    bannerTitle.textContent =
+      `CRITICAL THREAT DETECTED // ${threat.incident_id}`;
+
+    bannerTitle.classList.add("text-error");
+
+    defconInd.className =
+      "w-2.5 h-2.5 rounded-sm bg-error shadow-[0_0_10px_#f87171] animate-ping";
+
+    defconText.textContent = "DEFCON ECO-4";
+    defconText.className =
+      "font-mono text-[11px] uppercase tracking-wider text-error font-bold";
+
+    defconBadge.textContent = "INTERCEPT";
+    defconBadge.className =
+      "font-mono text-[10px] px-2 py-0.5 rounded bg-error text-on-error font-bold tracking-wider";
+
+    pulseCore.className =
+      "relative inline-flex rounded-full h-3.5 w-3.5 bg-error shadow-[0_0_12px_#f87171]";
+
+    pulseRing.className =
+      "animate-ping absolute inline-flex h-full w-full rounded-full bg-error opacity-80";
+
+    hudBox.classList.add("border-error/70", "bg-error/10");
+
+    if (incidentIndicator) {
+      incidentIndicator.className =
+        "w-2 h-2 rounded-full bg-error animate-ping";
+    }
+
+  } else {
+
+    bannerTitle.textContent =
+      `LIVE THREAT // ${threat.incident_id}`;
+
+    defconInd.className =
+      "w-2.5 h-2.5 rounded-sm bg-tertiary shadow-[0_0_8px_#fbbf24]";
+
+    defconText.textContent = "DEFCON ECO-2";
+
+    defconBadge.textContent = severity;
+
+    pulseCore.className =
+      "relative inline-flex rounded-full h-3.5 w-3.5 bg-tertiary";
+
+    pulseRing.className =
+      "animate-ping absolute inline-flex h-full w-full rounded-full bg-tertiary opacity-80";
+  }
+}
+
+
+// Add a real Supabase threat to the live stream
+function appendSupabaseThreatToFeed(threat) {
+
+  const feed = document.getElementById("live-threat-feed");
+
+  if (!feed) return;
+
+  const entry = document.createElement("div");
+
+  entry.className =
+    "feed-entry p-2.5 rounded bg-surface-container border border-error flex flex-col gap-1 transition-all animate-pulse";
+
+  entry.dataset.type =
+    threat.threat_level === "CRITICAL"
+      ? "CRITICAL"
+      : "ALL";
+
+  entry.innerHTML = `
+    <div class="flex items-center justify-between text-[10px]">
+      <span class="text-on-surface-variant font-mono">
+        LIVE // SUPABASE
+      </span>
+
+      <span class="px-1.5 py-0.5 rounded bg-error text-on-error text-[9px] font-bold">
+        ${threat.threat_level || "ALERT"}
+      </span>
+    </div>
+
+    <span class="text-xs text-on-surface font-semibold">
+      Forest Sentinel Incident ${threat.incident_id || "UNKNOWN"}
+    </span>
+
+    <span class="text-[10px] text-on-surface-variant">
+      Risk ${threat.risk_score ?? 0}/100 •
+      ${threat.action || "MONITOR"}
+    </span>
+  `;
+
+  feed.prepend(entry);
+
+  setTimeout(() => {
+    entry.classList.remove("animate-pulse");
+  }, 900);
+
+  while (feed.children.length > 8) {
+    feed.removeChild(feed.lastChild);
+  }
+
+  applyFeedFilter();
+};
+  
+  // SCENARIO SIMULATION MASTER DATA MATRIX
+  const SCENARIOS = {
+    1: {
+      name: "Avian Chirping / Wind Shear",
+      severity: "LOW",
+      score: 16,
+      scoreLabel: "Harmless Avian Vocalization",
+      scoreColor: "text-primary",
+      scoreStroke: "#34d399",
+      scoreRingDash: "16, 100",
+      sectorId: "A1",
+      sectorName: "Sector A1 - North Ridge",
+      sensor: "S01 - High Canopy Node",
+      sensorDb: "44 dB",
+      confidence: "94.6%",
+      ranger: "PASSIVE STANDBY",
+      action: "MONITOR_ONLY",
+      icon: "nest_eco_leaf",
+      explanation: "Acoustic classifier confirmed isolated 3.2kHz tonal whistle matching Crested Forest Eagle courtship song. TDoA confirms single localized canopy source with zero machine harmonics.",
+      agents: {
+        acoustic: { status: "CLASSIFIED", text: "Spectral peak: 3.2kHz harmonic with avian biological resonance profile.", state: "success" },
+        localization: { status: "CANOPY FIXED", text: "Localized exclusively to Sector A1 upper canopy canopy layer (altitude +34m).", state: "neutral" },
+        context: { status: "PROTECTED FAUNA", text: "Sanctuary Cadastre lists active nesting territory for crested eagle.", state: "success" },
+        threat: { status: "MINIMAL RISK", text: "Score: 16/100. Well beneath deterrence threshold. Dismiss alert.", state: "success" },
+        coordinator: { status: "CONSENSUS DISMISS", text: "Coordinator confirmed non-tactical wildlife activity. Logged to bio-archive.", state: "neutral" },
+        response: { status: "STANDBY", text: "No drone or siren deployment necessary. Passive acoustic surveillance continues.", state: "neutral" }
+      }
+    },
+    2: {
+      name: "Authorized Timber Harvesting",
+      severity: "PERMITTED",
+      score: 32,
+      scoreLabel: "Permitted Concession Machinery",
+      scoreColor: "text-secondary",
+      scoreStroke: "#a8b5ab",
+      scoreRingDash: "32, 100",
+      sectorId: "B4",
+      sectorName: "Sector B4 - Concession Buffer",
+      sensor: "S04 - Commercial Fringe Array",
+      sensorDb: "78 dB",
+      confidence: "98.2%",
+      ranger: "NOTIFIED (PERMIT ON FILE)",
+      action: "LOG_TRANSACTION",
+      icon: "assignment_turned_in",
+      explanation: "Low-frequency heavy industrial diesel hydraulics detected. Instantaneous cross-reference against Forestry Concession Database validated Active Timber Lease #204-B until 18:00 UTC.",
+      agents: {
+        acoustic: { status: "HEAVY DIESEL", text: "Low RPM diesel combustion cycle (120Hz fundamental) + tracked loader whine.", state: "warning" },
+        localization: { status: "CORRIDOR LOCK", text: "TDoA fix pinned inside permitted harvest parcel 204-B in Sector B4. Error &plusmn;1.8m.", state: "neutral" },
+        context: { status: "VALID LEASE", text: "Permit #204-B authenticated: GreenValley Eco-Logistics. Daylight harvest window active.", state: "success" },
+        threat: { status: "AUTHORIZED", text: "Sound pressure high (78dB), but completely mitigated by legal permit registry token.", state: "success" },
+        coordinator: { status: "VALIDATED", text: "All 6 agents agreed: Operation is compliant with regional forestry regulations.", state: "neutral" },
+        response: { status: "PERIMETER GEOFENCE", text: "Geofence monitor active. If machinery leaves parcel 204-B, immediate alert triggers.", state: "neutral" }
+      }
+    },
+    3: {
+      name: "Boundary Multipath Disagreement",
+      severity: "ARBITRATE",
+      score: 59,
+      scoreLabel: "Multipath Ridge Echo Conflict",
+      scoreColor: "text-tertiary",
+      scoreStroke: "#fbbf24",
+      scoreRingDash: "59, 100",
+      sectorId: "C3",
+      sectorName: "Sector C3 - Ridge Crestline",
+      sensor: "S05 - Ridge Cross-Link",
+      sensorDb: "64 dB",
+      confidence: "67.1%",
+      ranger: "UAV RECON INITIATED",
+      action: "LAUNCH_DRONE_PATROL",
+      icon: "flaky",
+      explanation: "Acoustic arrival waves reflected off granite cliff edge resulting in contradictory TDoA solver results between S04 and S05. Consensus agent stepped in and launched autonomous drone for camera confirmation.",
+      agents: {
+        acoustic: { status: "PERCUSSIVE ECHO", text: "Intermittent metal-on-rock strikes. Heavy multipath acoustic distortion present.", state: "warning" },
+        localization: { status: "AMBIGUOUS FIX", text: "Bimodal centroid between Sector C3 sanctuary and communal gravel access road.", state: "warning" },
+        context: { status: "BOUNDARY CRITICAL", text: "Sector C3 is strictly protected core sanctuary; adjacent boundary is unrestricted.", state: "warning" },
+        threat: { status: "EVALUATING RISK", text: "Risk score 59/100 due to geographic ambiguity adjacent to protected border.", state: "warning" },
+        coordinator: { status: "OVERRIDE DISPATCH", text: "Arbitration protocol invoked: Ambiguity requires physical visual confirmation.", state: "warning" },
+        response: { status: "DRONE #02 LAUNCH", text: "Autonomous UAV #02 deployed on vector 318&deg; with thermal FLIR camera armed.", state: "warning" }
+      }
+    },
+    4: {
+      name: "Critical Poaching Incursion (Chainsaw)",
+      severity: "CRITICAL",
+      score: 96,
+      scoreLabel: "Illegal 2-Stroke Chainsaw Incursion",
+      scoreColor: "text-error",
+      scoreStroke: "#f87171",
+      scoreRingDash: "96, 100",
+      sectorId: "B3",
+      sectorName: "Sector B3 - Old Growth Sanctuary",
+      sensor: "S03 - Prime Redwood Stand",
+      sensorDb: "94 dB",
+      confidence: "99.4%",
+      ranger: "TACTICAL ARMED INTERCEPT",
+      action: "AUTONOMOUS_DETERRENCE_AND_INTERCEPT",
+      icon: "warning",
+      explanation: "Violent 2-stroke chainsaw signature detected at 9,200 RPM in Sector B3 (Strict Sanctuary Zone). Triangulated across sensors S02, S03, S04. Zero legal permits. High-intensity acoustic deterrent sirens deployed and ranger intercept scramble issued!",
+      agents: {
+        acoustic: { status: "CHAINSAW HARMONIC", text: "High-RPM two-stroke notch at 9,200 RPM + periodic log slicing harmonics. 94dB surge!", state: "critical" },
+        localization: { status: "TRIANGULATED FIX", text: "Multi-node lock: S02, S03, S04. Lat: 45.3129&deg;N, Lon: -121.8491&deg;W (&plusmn;1.2m).", state: "critical" },
+        context: { status: "SEVERE VIOLATION", text: "ZERO permits authorized for Sector B3. Core Old-Growth Conservation Sanctuary violation.", state: "critical" },
+        threat: { status: "MAXIMUM CRITICAL", text: "Threat index 96/100. High probability of illegal old-growth redwood poaching incursion.", state: "critical" },
+        coordinator: { status: "EMERGENCY CONSENSUS", text: "100% agent quorum reached. Protocol ECO-ALPHA armed for instant tactical deterrence.", state: "critical" },
+        response: { status: "TACTICAL SCRAMBLE", text: "120dB directional acoustic siren activated. Armed Forest Ranger Sector Alpha notified.", state: "critical" }
+      }
+    }
+  };
+
+  // State Management
+  let activeScenarioId = null;
+  let isAutonomousActive = true;
+  let currentFilter = 'ALL';
+  let liveIncidentActive = false;
+  let pipelineRunId = 0;
+
+  // Sector Manual Click Handler
+  function selectSector(sectorId) {
+    document.querySelectorAll('.sector-node').forEach(el => {
+      el.classList.remove('border-primary', 'border-error', 'border-tertiary', 'bg-surface-container-highest');
+    });
+
+    const target = document.getElementById(`sector-${sectorId}`);
+    if (target) {
+      target.classList.add('border-primary', 'bg-surface-container-highest');
+    }
+
+    const badge = document.getElementById('selected-sector-badge');
+    badge.textContent = `PROBED SECTOR: ${sectorId}`;
+    badge.classList.add('text-primary');
+
+    // Audio bar slight ripple
+    randomizeVisualizer(false);
+  }
+
+  // Inject Scenario Simulation
+  function injectScenario(id) {
+    activeScenarioId = id;
+    
+    const data = SCENARIOS[id];
+    if (!data) return;
+    if (data.severity === 'CRITICAL') {
+      playSiren();
+    } else {
+      playChime();
+    }
+
+    // 1. Highlight Active Scenario Button
+    document.querySelectorAll('.scenario-btn').forEach(btn => {
+      btn.classList.remove('ring-1', 'ring-primary', 'ring-error', 'ring-tertiary', 'bg-surface-container-high');
+    });
+    const activeBtn = document.getElementById(`btn-scen-${id}`);
+    if (activeBtn) {
+      activeBtn.classList.add('bg-surface-container-high');
+      if (id === 4) activeBtn.classList.add('ring-1', 'ring-error');
+      else if (id === 3) activeBtn.classList.add('ring-1', 'ring-tertiary');
+      else activeBtn.classList.add('ring-1', 'ring-primary');
+    }
+
+    // 2. Clear all sector alert classes & ping animations
+    ['A1', 'A2', 'B3', 'B4', 'C3', 'C4'].forEach(sec => {
+      const el = document.getElementById(`sector-${sec}`);
+      if (el) {
+        el.classList.remove('bg-error/20', 'border-error', 'bg-tertiary/20', 'border-tertiary', 'bg-secondary/20', 'border-secondary', 'bg-primary/20', 'border-primary');
+      }
+    });
+    ['ping-B3', 'ping-B4', 'ping-C3'].forEach(pid => {
+      const p = document.getElementById(pid);
+      if (p) {
+        p.classList.add('opacity-0');
+        p.classList.remove('animate-ping');
+      }
+    });
+
+    // 3. Triangulation Lines for Scenario 4 (Poaching)
+    const triOverlay = document.getElementById('triangulation-overlay');
+    if (id === 4) {
+      triOverlay.classList.remove('opacity-0');
+    } else {
+      triOverlay.classList.add('opacity-0');
+    }
+
+    // 4. Update Target Sector Radar Styling
+    const targetSector = document.getElementById(`sector-${data.sectorId}`);
+    if (targetSector) {
+      if (data.severity === 'CRITICAL') {
+        targetSector.classList.add('bg-error/20', 'border-error');
+      } else if (data.severity === 'ARBITRATE') {
+        targetSector.classList.add('bg-tertiary/20', 'border-tertiary');
+      } else if (data.severity === 'PERMITTED') {
+        targetSector.classList.add('bg-secondary/20', 'border-secondary');
+      } else {
+        targetSector.classList.add('bg-primary/20', 'border-primary');
+      }
+    }
+
+    // Trigger sector ping ring
+    const pingRing = document.getElementById(`ping-${data.sectorId}`);
+    if (pingRing) {
+      pingRing.classList.remove('opacity-0');
+      pingRing.classList.add('animate-ping');
+    }
+
+    // Update sector decibel readout
+    const sectorDbEl = document.getElementById(`db-${data.sectorId}`);
+    if (sectorDbEl) {
+      sectorDbEl.textContent = data.sensorDb;
+    }
+
+    // Update HUD strip banner & DEFCON status
+    updateHudStatus(data);
+
+    // Animate audio FFT visualizer based on scenario severity
+    animateAudioBars(data.severity);
+
+    // 5. Sequential Chain of Reasoning Agent Animation
+    animateDemoPipelineAgents(data);
+
+    // 6. Update Threat Gauge & Specification Card
+    updateThreatCard(data);
+
+    // 7. Append Event to Sentinel Live Stream
+    appendStreamEvent(data);
+  }
+
+  // Animate Equalizer Waveform
+  function animateAudioBars(severity) {
+    const bars = document.querySelectorAll('.eq-bar');
+    const dbTag = document.getElementById('db-live-tag');
+    
+    if (severity === 'CRITICAL') {
+      dbTag.textContent = "94 dB [SURGE]";
+      dbTag.className = "font-mono text-[10px] text-error font-bold";
+      bars.forEach(b => {
+        const h = Math.floor(Math.random() * 18) + 8;
+        b.style.height = `${h}px`;
+        b.className = "eq-bar w-1.5 bg-error rounded-t-sm";
+      });
+    } else if (severity === 'ARBITRATE') {
+      dbTag.textContent = "64 dB";
+      dbTag.className = "font-mono text-[10px] text-tertiary font-bold";
+      bars.forEach(b => {
+        const h = Math.floor(Math.random() * 12) + 4;
+        b.style.height = `${h}px`;
+        b.className = "eq-bar w-1.5 bg-tertiary rounded-t-sm";
+      });
+    } else {
+      dbTag.textContent = "32 dB";
+      dbTag.className = "font-mono text-[10px] text-primary font-bold";
+      bars.forEach(b => {
+        const h = Math.floor(Math.random() * 8) + 2;
+        b.style.height = `${h}px`;
+        b.className = "eq-bar w-1.5 bg-primary rounded-t-sm";
+      });
+    }
+  }
+
+  function randomizeVisualizer(subtle = true) {
+    const bars = document.querySelectorAll('.eq-bar');
+    bars.forEach(b => {
+      const h = subtle ? Math.floor(Math.random() * 8) + 2 : Math.floor(Math.random() * 14) + 4;
+      b.style.height = `${h}px`;
+    });
+  }
+  setInterval(() => {
+    if (!activeScenarioId || activeScenarioId !== 4) {
+      randomizeVisualizer(true);
+    }
+  }, 1200);
+
+  // Animate Pipeline Step-by-Step
+function animatePipelineAgents(agentDecisions) {
+    const badge = document.getElementById('pipeline-status-badge');
+
+    if (!agentDecisions || agentDecisions.length === 0) {
+        console.log("🤖 No agent decisions available for pipeline.");
+        return;
+    }
+    const thisRun = ++pipelineRunId;
+
+    const agentMap = {
+        AcousticAgent: 'acoustic',
+        LocalizationAgent: 'localization',
+        ContextAgent: 'context',
+        ThreatAssessmentAgent: 'threat',
+        CoordinatorAgent: 'coordinator',
+        ResponseAgent: 'response'
+    };
+
+    const latestByAgent = {};
+
+    agentDecisions.forEach(decision => {
+        if (decision.agent_name) {
+            latestByAgent[decision.agent_name] = decision;
+        }
+    });
+
+    const pipelineAgents = [
+        'AcousticAgent',
+        'LocalizationAgent',
+        'ContextAgent',
+        'ThreatAssessmentAgent',
+        'CoordinatorAgent',
+        'ResponseAgent'
+    ];
+
+    if (badge) {
+        badge.textContent = 'AGENTS PROCESSING...';
+        badge.className =
+            'font-mono text-[10px] tracking-wider uppercase px-2.5 py-0.5 rounded bg-tertiary-container text-tertiary border border-tertiary/50 font-bold animate-pulse';
+    }
+
+    pipelineAgents.forEach((agentName, index) => {
+
+        const decision = latestByAgent[agentName];
+        const key = agentMap[agentName];
+
+        if (!decision || !key) {
+            console.log(`🤖 No decision found for ${agentName}`);
+            return;
+        }
+
+        const agentEl = document.getElementById(`agent-${key}`);
+        const tagEl = document.getElementById(`tag-agent-${key}`);
+        const textEl = agentEl?.querySelector('.log-text');
+        const iconWrap = document.getElementById(`agent-icon-${key}`);
+
+        if (!agentEl) return;
+
+        let result = decision.result || {};
+
+        // Defensive parse: handle result arriving as a JSON string
+        if (typeof result === 'string') {
+            try {
+                result = JSON.parse(result);
+            } catch (e) {
+                console.warn(`⚠️ Could not parse result for ${agentName}:`, decision.result);
+                result = {};
+            }
+        }
+
+        setTimeout(() => {
+          if (thisRun !== pipelineRunId) return; // a newer incident superseded this one
+          
+
+            let statusText = 'COMPLETE';
+            let logText = 'Decision processed.';
+
+            // 01 — AcousticAgent
+            if (agentName === 'AcousticAgent') {
+
+                statusText = 'DETECTED';
+
+                const count = agentDecisions.filter(
+                    d => d.agent_name === 'AcousticAgent'
+                ).length;
+
+                logText =
+                    `${count} acoustic event${count === 1 ? '' : 's'} analyzed`;
+
+            }
+
+            // 02 — LocalizationAgent
+            else if (agentName === 'LocalizationAgent') {
+
+                statusText = 'LOCATED';
+
+                logText =
+                    `Most likely location: ${result.most_likely_location || 'UNKNOWN'}`;
+
+            }
+
+            // 03 — ContextAgent
+            else if (agentName === 'ContextAgent') {
+
+                statusText = result.context_status || 'VERIFIED';
+
+                logText =
+                    `Location ${result.location || 'UNKNOWN'}: ${statusText}`;
+
+            }
+
+            // 04 — ThreatAssessmentAgent
+            else if (agentName === 'ThreatAssessmentAgent') {
+
+                statusText = result.threat_level || 'ASSESSED';
+
+                logText =
+                    `Threat ${result.threat_level || 'UNKNOWN'} // Score ${result.threat_score ?? '--'}`;
+
+            }
+
+            // 05 — CoordinatorAgent
+            else if (agentName === 'CoordinatorAgent') {
+
+                statusText = result.system_status || 'RESOLVED';
+
+                logText =
+                    `${result.detected_events ?? 0} events // ${result.recommended_action || 'NO ACTION'}`;
+
+            }
+
+            // 06 — ResponseAgent
+            else if (agentName === 'ResponseAgent') {
+
+                statusText = result.priority || 'READY';
+
+                logText =
+                    `${result.action || 'NO ACTION'} // ${result.location || 'UNKNOWN'}`;
+            }
+
+            if (tagEl) {
+                tagEl.textContent = statusText;
+            }
+
+            if (textEl) {
+                textEl.textContent = logText;
+            }
+
+            // Visual state
+            const critical =
+                result.threat_level === 'CRITICAL' ||
+                result.system_status === 'EMERGENCY' ||
+                statusText === 'URGENT' ||
+                statusText === 'UNAUTHORIZED';
+
+            const warning =
+                result.threat_level === 'HIGH' ||
+                result.threat_level === 'MEDIUM';
+
+            if (critical) {
+
+                agentEl.classList.add(
+                    'bg-error/15',
+                    'border-error/60'
+                );
+
+                if (tagEl) {
+                    tagEl.classList.add(
+                        'bg-error',
+                        'text-on-error'
+                    );
+                }
+
+                if (iconWrap) {
+                    iconWrap.className =
+                        "w-6 h-6 rounded bg-error/20 border border-error text-error flex items-center justify-center text-xs";
+                }
+
+            } else if (warning) {
+
+                agentEl.classList.add(
+                    'bg-tertiary-container/20',
+                    'border-tertiary/60'
+                );
+
+                if (tagEl) {
+                    tagEl.classList.add(
+                        'bg-tertiary-container',
+                        'text-tertiary'
+                    );
+                }
+
+            } else {
+
+                agentEl.classList.add(
+                    'bg-primary-container/20',
+                    'border-primary/50'
+                );
+
+                if (tagEl) {
+                    tagEl.classList.add(
+                        'bg-primary/20',
+                        'text-primary'
+                    );
+                }
+            }
+
+            // Final pipeline result
+            if (index === pipelineAgents.length - 1 && badge) {
+
+                const coordinator =
+                    latestByAgent['CoordinatorAgent'];
+
+                const coordinatorResult =
+                    coordinator?.result || {};
+
+                if (coordinatorResult.system_status === 'EMERGENCY') {
+
+                    badge.textContent =
+                        'TACTICAL INTERCEPT ARMED';
+
+                    badge.className =
+                        'font-mono text-[10px] tracking-wider uppercase px-2.5 py-0.5 rounded bg-error text-on-error font-bold';
+
+                } else {
+
+                    badge.textContent =
+                        'CONSENSUS RESOLVED';
+
+                    badge.className =
+                        'font-mono text-[10px] tracking-wider uppercase px-2.5 py-0.5 rounded bg-primary/20 text-primary border border-primary/40 font-bold';
+                }
+            }
+
+        }, index * 700);
+    });
+}
+function animateDemoPipelineAgents(data) {
+    const badge = document.getElementById('pipeline-status-badge');
+    if (!data || !data.agents) return;
+
+    const agentKeys = ['acoustic', 'localization', 'context', 'threat', 'coordinator', 'response'];
+
+    if (badge) {
+        badge.textContent = 'AGENTS PROCESSING...';
+        badge.className =
+            'font-mono text-[10px] tracking-wider uppercase px-2.5 py-0.5 rounded bg-tertiary-container text-tertiary border border-tertiary/50 font-bold animate-pulse';
+    }
+
+    agentKeys.forEach((key, index) => {
+        const agentData = data.agents[key];
+        if (!agentData) return;
+
+        const agentEl = document.getElementById(`agent-${key}`);
+        const tagEl = document.getElementById(`tag-agent-${key}`);
+        const textEl = agentEl?.querySelector('.log-text');
+        const iconWrap = document.getElementById(`agent-icon-${key}`);
+        if (!agentEl) return;
+
+        setTimeout(() => {
+            if (tagEl) tagEl.textContent = agentData.status;
+            if (textEl) textEl.innerHTML = agentData.text;
+
+            if (agentData.state === 'critical') {
+                agentEl.classList.add('bg-error/15', 'border-error/60');
+                if (tagEl) tagEl.classList.add('bg-error', 'text-on-error');
+                if (iconWrap) iconWrap.className = "w-6 h-6 rounded bg-error/20 border border-error text-error flex items-center justify-center text-xs";
+            } else if (agentData.state === 'warning') {
+                agentEl.classList.add('bg-tertiary-container/20', 'border-tertiary/60');
+                if (tagEl) tagEl.classList.add('bg-tertiary-container', 'text-tertiary');
+            } else {
+                agentEl.classList.add('bg-primary-container/20', 'border-primary/50');
+                if (tagEl) tagEl.classList.add('bg-primary/20', 'text-primary');
+            }
+
+            if (index === agentKeys.length - 1 && badge) {
+                if (data.severity === 'CRITICAL') {
+                    badge.textContent = 'TACTICAL INTERCEPT ARMED';
+                    badge.className = 'font-mono text-[10px] tracking-wider uppercase px-2.5 py-0.5 rounded bg-error text-on-error font-bold';
+                } else {
+                    badge.textContent = 'CONSENSUS RESOLVED';
+                    badge.className = 'font-mono text-[10px] tracking-wider uppercase px-2.5 py-0.5 rounded bg-primary/20 text-primary border border-primary/40 font-bold';
+                }
+            }
+        }, index * 700);
+    });
+}
+  // Update Threat Context Card
+  function updateThreatCard(data) {
+    if (liveIncidentActive) {
+    return;
+  }
+    const badgeTop = document.getElementById('threat-badge-top');
+    badgeTop.textContent = data.severity;
+
+    if (data.severity === 'CRITICAL') {
+      badgeTop.className = 'font-mono text-[10px] font-bold px-2 py-0.5 rounded bg-error text-on-error uppercase font-bold shadow-[0_0_10px_rgba(248,113,113,0.4)]';
+    } else if (data.severity === 'ARBITRATE') {
+      badgeTop.className = 'font-mono text-[10px] font-bold px-2 py-0.5 rounded bg-tertiary-container text-tertiary uppercase font-bold border border-tertiary/40';
+    } else if (data.severity === 'PERMITTED') {
+      badgeTop.className = 'font-mono text-[10px] font-bold px-2 py-0.5 rounded bg-secondary-container text-on-secondary uppercase font-bold border border-outline';
+    } else {
+      badgeTop.className = 'font-mono text-[10px] font-bold px-2 py-0.5 rounded bg-primary/20 border border-primary/40 text-primary uppercase font-bold';
+    }
+
+    document.getElementById('threat-score-num').textContent = String(data.score).padStart(2, '0');
+    document.getElementById('threat-score-label').textContent = data.scoreLabel;
+
+    // Update SVG Ring
+    const ringPath = document.getElementById('score-ring-path');
+    ringPath.setAttribute('stroke-dasharray', data.scoreRingDash);
+    ringPath.style.stroke = data.scoreStroke;
+
+    document.getElementById('threat-center-icon').textContent = data.icon;
+    document.getElementById('threat-center-icon').className = `material-symbols-outlined absolute text-lg ${data.scoreColor}`;
+
+    document.getElementById('detail-sensor').textContent = data.sensor;
+    document.getElementById('detail-confidence').textContent = data.confidence;
+    document.getElementById('detail-ranger').textContent = data.ranger;
+
+    const actionEl = document.getElementById('detail-action');
+    actionEl.textContent = data.action;
+    if (data.severity === 'CRITICAL') {
+      actionEl.className = 'text-error font-bold text-[10px] px-1.5 py-0.5 rounded bg-error-container border border-error';
+    } else if (data.severity === 'ARBITRATE') {
+      actionEl.className = 'text-tertiary font-bold text-[10px] px-1.5 py-0.5 rounded bg-tertiary-container/50 border border-tertiary';
+    } else {
+      actionEl.className = 'text-primary font-bold text-[10px] px-1.5 py-0.5 rounded bg-surface-container-high border border-outline-variant';
+    }
+
+    document.getElementById('detail-explanation').innerHTML = data.explanation;
+  }
+
+  // Update Top HUD Bar & DEFCON
+  function updateHudStatus(data) {
+    const bannerTitle = document.getElementById('hud-banner-title');
+    const defconInd = document.getElementById('defcon-indicator');
+    const defconText = document.getElementById('defcon-text');
+    const defconBadge = document.getElementById('defcon-badge');
+    const pulseCore = document.getElementById('hud-pulse-core');
+    const pulseRing = document.getElementById('hud-pulse-ring');
+    const hudBox = document.getElementById('hud-status-strip');
+
+    if (data.severity === 'CRITICAL') {
+      bannerTitle.textContent = "CRITICAL THREAT DETECTED // SECTOR B3 INCURSION";
+      bannerTitle.classList.add('text-error');
+      defconInd.className = "w-2.5 h-2.5 rounded-sm bg-error shadow-[0_0_10px_#f87171] animate-ping";
+      defconText.textContent = "DEFCON ECO-4";
+      defconText.className = "font-mono text-[11px] uppercase tracking-wider text-error font-bold";
+      defconBadge.textContent = "INTERCEPT";
+      defconBadge.className = "font-mono text-[10px] px-2 py-0.5 rounded bg-error text-on-error font-bold tracking-wider";
+      pulseCore.className = "relative inline-flex rounded-full h-3.5 w-3.5 bg-error shadow-[0_0_12px_#f87171]";
+      pulseRing.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-error opacity-80";
+      hudBox.classList.add('border-error/70', 'bg-error/10');
+      document.getElementById('nav-incident-indicator').className = "w-2 h-2 rounded-full bg-error animate-ping";
+    } else if (data.severity === 'ARBITRATE') {
+      bannerTitle.textContent = "MULTIPATH CONFLICT // ARBITRATION IN PROGRESS";
+      bannerTitle.classList.remove('text-error');
+      defconInd.className = "w-2.5 h-2.5 rounded-sm bg-tertiary shadow-[0_0_8px_#fbbf24]";
+      defconText.textContent = "DEFCON ECO-2";
+      defconText.className = "font-mono text-[11px] uppercase tracking-wider text-tertiary font-bold";
+      defconBadge.textContent = "CAUTION";
+      defconBadge.className = "font-mono text-[10px] px-2 py-0.5 rounded bg-tertiary-container text-tertiary font-bold tracking-wider";
+      pulseCore.className = "relative inline-flex rounded-full h-3.5 w-3.5 bg-tertiary shadow-[0_0_10px_#fbbf24]";
+      pulseRing.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-tertiary opacity-80";
+      hudBox.classList.remove('border-error/70', 'bg-error/10');
+    } else {
+      bannerTitle.textContent = "LIVE CANOPY OVERWATCH // EPSG:3857";
+      bannerTitle.classList.remove('text-error');
+      defconInd.className = "w-2.5 h-2.5 rounded-sm bg-primary shadow-[0_0_8px_#34d399]";
+      defconText.textContent = "DEFCON ECO-1";
+      defconText.className = "font-mono text-[11px] uppercase tracking-wider text-on-surface font-bold";
+      defconBadge.textContent = "STABLE";
+      defconBadge.className = "font-mono text-[10px] px-2 py-0.5 rounded bg-primary/10 border border-primary/40 text-primary font-bold tracking-wider";
+      pulseCore.className = "relative inline-flex rounded-full h-3.5 w-3.5 bg-primary shadow-[0_0_10px_#34d399]";
+      pulseRing.className = "animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-80";
+      hudBox.classList.remove('border-error/70', 'bg-error/10');
+    }
+  }
+
+  // Append Event to Live Sentinel Stream
+  function appendStreamEvent(data) {
+    const feed = document.getElementById('live-threat-feed');
+    if (!feed) return;
+
+    const now = new Date();
+    const timeStr = `${String(now.getUTCHours()).padStart(2, '0')}:${String(now.getUTCMinutes()).padStart(2, '0')}:${String(now.getUTCSeconds()).padStart(2, '0')} UTC`;
+
+    const entry = document.createElement('div');
+    entry.className = 'feed-entry p-2.5 rounded bg-surface-container border border-outline-variant flex flex-col gap-1 transition-all animate-pulse';
+    entry.dataset.type = data.severity === 'CRITICAL' ? 'CRITICAL' : (data.severity === 'LOW' ? 'AUDIO' : 'ALL');
+
+    let badgeClass = "bg-primary/20 text-primary border border-primary/30";
+    if (data.severity === 'CRITICAL') {
+      badgeClass = "bg-error text-on-error font-bold shadow-[0_0_8px_rgba(248,113,113,0.5)]";
+    } else if (data.severity === 'ARBITRATE') {
+      badgeClass = "bg-tertiary-container text-tertiary border border-tertiary/40 font-bold";
+    } else if (data.severity === 'PERMITTED') {
+      badgeClass = "bg-secondary-container text-on-secondary border border-outline font-bold";
+    }
+
+    entry.innerHTML = `
+      <div class="flex items-center justify-between text-[10px]">
+        <span class="text-on-surface-variant font-mono">${timeStr}</span>
+        <span class="px-1.5 py-0.2 rounded ${badgeClass} text-[9px]">${data.severity}</span>
+      </div>
+      <span class="text-xs text-on-surface font-semibold">${data.name}</span>
+      <span class="text-[10px] text-on-surface-variant">${data.sectorName} • ${data.action}</span>
+    `;
+
+    feed.prepend(entry);
+    setTimeout(() => {
+      entry.classList.remove('animate-pulse');
+    }, 900);
+
+    // Keep feed to max 8 items
+    while (feed.children.length > 8) {
+      feed.removeChild(feed.lastChild);
+    }
+
+    // Respect current filter
+    applyFeedFilter();
+  }
+
+  // Live Stream Filters
+  function filterFeed(type) {
+    currentFilter = type;
+    document.querySelectorAll('.filter-btn').forEach(b => {
+      b.classList.remove('bg-surface-container-high', 'text-primary', 'border-primary/40', 'font-bold');
+      b.classList.add('bg-surface-container', 'text-on-surface-variant', 'border-outline-variant');
+    });
+
+    const activeBtn = document.getElementById(`filter-${type.toLowerCase()}`);
+    if (activeBtn) {
+      activeBtn.classList.add('bg-surface-container-high', 'text-primary', 'border-primary/40', 'font-bold');
+    }
+
+    applyFeedFilter();
+  }
+
+  function applyFeedFilter() {
+    const entries = document.querySelectorAll('.feed-entry');
+    entries.forEach(e => {
+      if (currentFilter === 'ALL') {
+        e.style.display = 'flex';
+      } else if (currentFilter === 'CRITICAL') {
+        e.style.display = e.dataset.type === 'CRITICAL' ? 'flex' : 'none';
+      } else if (currentFilter === 'AUDIO') {
+        e.style.display = (e.dataset.type === 'AUDIO' || e.dataset.type === 'CRITICAL') ? 'flex' : 'none';
+      }
+    });
+  }
+
+  // Transmit Ping Button
+  function triggerPingBurst() {
+    const pingBtn = document.getElementById('btn-transmit-ping');
+    pingBtn.classList.add('ring-2', 'ring-primary', 'bg-emerald-400');
+    
+    // Animate all sectors with light radar wave
+    document.querySelectorAll('.radar-ping-ring').forEach((ring, idx) => {
+      setTimeout(() => {
+        ring.classList.remove('opacity-0');
+        ring.classList.add('animate-ping');
+        setTimeout(() => {
+          ring.classList.add('opacity-0');
+          ring.classList.remove('animate-ping');
+        }, 1200);
+      }, idx * 100);
+    });
+
+    setTimeout(() => {
+      pingBtn.classList.remove('ring-2', 'ring-primary', 'bg-emerald-400');
+    }, 600);
+  }
+
+  // Autonomous Response Toggle
+  function toggleAutonomousResponse() {
+    isAutonomousActive = !isAutonomousActive;
+    const dot = document.getElementById('auto-dot');
+    const txt = document.getElementById('auto-text');
+    const btn = document.getElementById('btn-toggle-auto');
+
+    if (isAutonomousActive) {
+      dot.className = "w-2 h-2 rounded-full bg-primary animate-ping";
+      txt.textContent = "AUTONOMOUS: ACTIVE";
+      btn.className = "px-3 py-1.5 rounded border border-primary/50 bg-primary-container/40 hover:bg-primary-container text-on-primary-container text-xs font-semibold uppercase tracking-wider flex items-center gap-2 transition-all shadow-sm";
+    } else {
+      dot.className = "w-2 h-2 rounded-full bg-tertiary";
+      txt.textContent = "AUTONOMOUS: MANUAL PAUSE";
+      btn.className = "px-3 py-1.5 rounded border border-tertiary/50 bg-tertiary-container/30 hover:bg-tertiary-container text-tertiary text-xs font-semibold uppercase tracking-wider flex items-center gap-2 transition-all shadow-sm";
+    }
+  }
+
+  // Surveillance Cycle Ticker Micro-Update
+  let cycleHz = 1402891;
+  setInterval(() => {
+    cycleHz += Math.floor(Math.random() * 7) - 3;
+    const ticker = document.getElementById('cycle-ticker');
+    if (ticker) ticker.textContent = `${cycleHz.toLocaleString()} HZ`;
+  }, 2200);
+
+  // Initialize Default Selection on Load
+  window.addEventListener('DOMContentLoaded', async () => {
+  selectSector('B3');
+
+  // Load the latest real threat first
+  const threat = await loadLatestThreat();
+
+  if (!threat?.incident_id) {
+    const bannerTitle = document.getElementById('hud-banner-title');
+    if (bannerTitle) {
+      bannerTitle.textContent = "AWAITING LIVE INCIDENT // NO ACTIVE THREATS";
+    }
+    console.log("🌲 No active incident found — UI showing default/idle state.");
+  }
+
+  if (threat?.incident_id) {
+    console.log("🌲 LIVE INCIDENT ID:", threat.incident_id);
+
+    // Load events belonging to that exact incident
+    const events = await loadLatestEvents(threat.incident_id);
+
+    console.log("🌲 EVENTS READY FOR UI:", events);
+
+    processSupabaseEvents(events, threat.threat_level);
+
+    // Load real agent decisions for this exact incident
+    const agentDecisions = await loadAgentDecisions(threat.incident_id);
+    window.debugAgentDecisions = agentDecisions; // TEMP: for console inspection
+    console.log("🤖 AGENT DECISIONS READY FOR UI:", agentDecisions);
+
+    // Render real agent decisions into the pipeline UI
+    if (agentDecisions && agentDecisions.length > 0) {
+      animatePipelineAgents(agentDecisions);
+    } else {
+      console.log("🤖 No real agent decisions to render yet.");
+    }
+  }
+});
+
+async function loadSampleAudio(path, sensorId, label) {
+  const input = document.getElementById("audio-file");
+  const sensorSelect = document.getElementById("audio-sensor");
+  const result = document.getElementById("audio-result");
+
+  try {
+    result.textContent = `Loading ${label} sample...`;
+
+    const response = await fetch(path);
+    if (!response.ok) throw new Error(`Could not fetch ${path} (${response.status})`);
+
+    const blob = await response.blob();
+    const file = new File([blob], path.split('/').pop(), { type: blob.type || "audio/mpeg" });
+
+    // Stuff the fetched file into the existing #audio-file input
+    // so analyzeAudio() works completely unchanged.
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    input.files = dt.files;
+
+    sensorSelect.value = sensorId;
+
+    await analyzeAudio();
+  } catch (err) {
+    result.textContent = `Error loading sample: ${err.message}`;
+    console.error("🌲 Sample audio load failed:", err);
+  }
+}
+ async function analyzeAudio() {
+  const input = document.getElementById("audio-file");
+  const sensor = document.getElementById("audio-sensor");
+  const sectorMap = { S01: "A1", S02: "A2", S03: "B3", S04: "C7", S05: "C3", S06: "C4" };
+const selectedSector = sectorMap[sensor.value];
+
+const sectorBadge = document.getElementById("selected-sector-badge");
+if (sectorBadge) {
+  sectorBadge.textContent = `CURRENT PROBE: SECTOR ${selectedSector}`;
+}
+const probedSector = document.getElementById("probed-sector");
+if (probedSector) {
+  probedSector.textContent = selectedSector;
+}
+  const result = document.getElementById("audio-result");
+  const file = input.files[0];
+
+  if (!file) {
+    result.textContent = "Choose an audio file first.";
+    return;
+  }
+
+  // Stop any currently-playing preview before starting a new one
+  if (window.currentPreviewAudio) {
+    window.currentPreviewAudio.pause();
+    window.currentPreviewAudio.currentTime = 0;
+  }
+
+  const previewURL = URL.createObjectURL(file);
+  const previewAudio = new Audio(previewURL);
+  window.currentPreviewAudio = previewAudio;
+  previewAudio.play();
+
+  setTimeout(() => {
+    previewAudio.pause();
+    previewAudio.currentTime = 0;
+    URL.revokeObjectURL(previewURL);
+  }, 5000);
+
+  setTimeout(() => {
+    previewAudio.pause();
+    previewAudio.currentTime = 0;
+    URL.revokeObjectURL(previewURL);
+  }, 5000);
+
+  const formData = new FormData();
+  formData.append("audio", file);
+  formData.append("sensor_id", sensor.value);
+
+  result.textContent = "YAMNet is analyzing audio...";
+
+  try {
+    const response = await fetch(
+      "http://127.0.0.1:8000/analyze-audio",
+      {
+        method: "POST",
+        body: formData
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Audio analysis failed.");
+    }
+
+    const top3 = data.classification.top_3
+      .map(item => `${item.label} ${Math.round(item.confidence * 100)}%`)
+      .join(" • ");
+
+    result.textContent =
+      `Detected: ${data.classification.label.toUpperCase()} — ${top3}`;
+
+    const threat = await loadLatestThreat();
+
+    if (threat?.incident_id) {
+      const events = await loadLatestEvents(threat.incident_id);
+      const decisions = await loadAgentDecisions(threat.incident_id);
+
+      processSupabaseEvents(events, threat.threat_level);
+      animatePipelineAgents(decisions);
+    }
+  } catch (error) {
+    result.textContent = `Error: ${error.message};`;
+  }
+}</script>
+</body></html>
