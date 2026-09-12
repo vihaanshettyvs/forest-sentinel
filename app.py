@@ -4,8 +4,8 @@ import tempfile
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
-from classifier import YAMNetClassifier
-from agents.supabase_db import (
+from backend.classifier import YAMNetClassifier
+from backend.supabase_db import (
     supabase,
     new_incident_id,
     save_detection,
@@ -167,4 +167,4 @@ def analyze_audio():
 
 
 if __name__ == "__main__":
-    app.run(port=8000, debug=True)
+    app.run(port=8000, debug=True), debug=True)
